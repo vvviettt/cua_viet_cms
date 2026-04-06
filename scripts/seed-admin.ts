@@ -2,10 +2,35 @@ import { config } from "dotenv";
 import { hashSync } from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { getDb } from "../lib/db/index";
-import { users } from "../lib/db/schema";
+import { users, workScheduleTypes } from "../lib/db/schema";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
+
+async function ensureWorkScheduleTypes(db: ReturnType<typeof getDb>) {
+  const now = new Date().toISOString();
+  await db
+    .insert(workScheduleTypes)
+    .values([
+      {
+        code: "hdnd_ubnd_lam_viec",
+        label: "Lịch làm việc HDND-UBND",
+        sortOrder: 1,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        code: "hdnd_ubnd_tiep_dan",
+        label: "Lịch tiếp dân HĐND-UBND",
+        sortOrder: 2,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ])
+    .onConflictDoNothing({ target: workScheduleTypes.code });
+}
 
 async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@gmail.com").trim().toLowerCase();
@@ -18,6 +43,8 @@ async function main() {
   const now = new Date().toISOString();
   const passwordHash = hashSync(password, 12);
   const db = getDb();
+
+  await ensureWorkScheduleTypes(db);
 
   const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (existing.length > 0) {

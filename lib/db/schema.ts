@@ -1,9 +1,21 @@
 import { relations } from "drizzle-orm";
-import { bigint, boolean, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  date,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "editor", "viewer"]);
 
 export const fileCategoryEnum = pgEnum("file_category", ["work_schedule", "document", "other"]);
+
+export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -11,6 +23,19 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name"),
   role: userRoleEnum("role").notNull().default("viewer"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Loại lịch (mở rộng sau: thêm dòng trong bảng này). */
+export const workScheduleTypes = pgTable("work_schedule_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Mã cố định trong code / báo cáo, ví dụ: hdnd_ubnd_lam_viec */
+  code: text("code").notNull().unique(),
+  /** Nhãn hiển thị */
+  label: text("label").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -28,19 +53,52 @@ export const files = pgTable("files", {
   createdAt: text("created_at").notNull(),
 });
 
-export const workSchedules = pgTable("work_schedules", {
-  id: uuid("id").primaryKey(),
-  weekValue: text("week_value").notNull().unique(),
-  title: text("title").notNull(),
-  fileName: text("file_name").notNull(),
-  originalName: text("original_name").notNull(),
-  fileId: uuid("file_id").references(() => files.id),
+
+export const staffMembers = pgTable("staff_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fullName: text("full_name").notNull(),
+  dateOfBirth: date("date_of_birth", { mode: "string" }),
+  jobTitle: text("job_title").notNull(),
+  avatarRelativePath: text("avatar_relative_path"),
+  contactEmail: text("contact_email"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
 
+export const workSchedules = pgTable(
+  "work_schedules",
+  {
+    id: uuid("id").primaryKey(),
+    typeId: uuid("type_id")
+      .notNull()
+      .references(() => workScheduleTypes.id),
+    periodKind: schedulePeriodKindEnum("period_kind").notNull().default("week"),
+    /** Tuần: `YYYY-Www`, tháng: `YYYY-MM`, năm: `YYYY` */
+    periodValue: text("period_value").notNull(),
+    title: text("title").notNull(),
+    fileName: text("file_name").notNull(),
+    originalName: text("original_name").notNull(),
+    fileId: uuid("file_id").references(() => files.id),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    unique("work_schedules_type_id_period_kind_period_value_unique").on(
+      t.typeId,
+      t.periodKind,
+      t.periodValue,
+    ),
+  ],
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   uploadedFiles: many(files),
+}));
+
+export const workScheduleTypesRelations = relations(workScheduleTypes, ({ many }) => ({
+  schedules: many(workSchedules),
 }));
 
 export const filesRelations = relations(files, ({ one }) => ({
@@ -54,5 +112,9 @@ export const workSchedulesRelations = relations(workSchedules, ({ one }) => ({
   file: one(files, {
     fields: [workSchedules.fileId],
     references: [files.id],
+  }),
+  scheduleType: one(workScheduleTypes, {
+    fields: [workSchedules.typeId],
+    references: [workScheduleTypes.id],
   }),
 }));

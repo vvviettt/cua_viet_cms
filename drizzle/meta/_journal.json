@@ -15,6 +15,27 @@
       "when": 1775440902987,
       "tag": "0001_users_files_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775443000458,
+      "tag": "0002_work_schedule_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775444000000,
+      "tag": "0003_schedule_period_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775445000000,
+      "tag": "0004_staff_members",
+      "breakpoints": true
     }
   ]
 }

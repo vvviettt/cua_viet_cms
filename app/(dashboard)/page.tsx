@@ -46,16 +46,13 @@ export default async function AdminHomePage() {
       <header className="border-b border-zinc-200 pb-8">
         <p className="text-sm font-medium text-[var(--portal-primary)]">Bảng điều khiển</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
-          Xin chào{session?.email ? `, ${session.email}` : ""}
+          Xin chào{session?.name ? `, ${session.name}` : ""}
         </h1>
         <p className="mt-3 max-w-2xl text-zinc-600">{SITE.description}</p>
       </header>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-zinc-900">Module cập nhật dữ liệu</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          Các chức năng sẽ được bổ sung theo từng giai đoạn triển khai.
-        </p>
+        
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((m) => {
             const cardClass =
