@@ -17,6 +17,17 @@ export const fileCategoryEnum = pgEnum("file_category", ["work_schedule", "docum
 
 export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
 
+/** Phản ánh vs kiến nghị */
+export const citizenFeedbackKindEnum = pgEnum("citizen_feedback_kind", ["phan_anh", "kien_nghi"]);
+
+/** Trạng thái xử lý */
+export const citizenFeedbackStatusEnum = pgEnum("citizen_feedback_status", [
+  "received",
+  "processing",
+  "answered",
+  "closed",
+]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
@@ -53,6 +64,36 @@ export const files = pgTable("files", {
   createdAt: text("created_at").notNull(),
 });
 
+/** Tài khoản đăng ký của người dân (đăng nhập bằng số điện thoại — `phone` là duy nhất, không dùng làm PK). */
+export const citizenAccounts = pgTable("citizen_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  phone: text("phone").notNull().unique(),
+  email: text("email").unique(),
+  passwordHash: text("password_hash").notNull(),
+  fullName: text("full_name").notNull(),
+  address: text("address").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const citizenFeedback = pgTable("citizen_feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: citizenFeedbackKindEnum("kind").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  citizenAccountId: uuid("citizen_account_id")
+    .notNull()
+    .references(() => citizenAccounts.id),
+  status: citizenFeedbackStatusEnum("status").notNull().default("received"),
+  answeredByUserId: uuid("answered_by_user_id").references(() => users.id),
+  /** Nội dung trả lời chính thức gửi người dân (hiển thị trên ứng dụng / cổng). */
+  staffReply: text("staff_reply"),
+  adminNote: text("admin_note"),
+  /** Bật thì API/ứng dụng không nên hiển thị hồ sơ này cho người dân. */
+  hiddenFromApp: boolean("hidden_from_app").notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
 
 export const staffMembers = pgTable("staff_members", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -61,6 +102,20 @@ export const staffMembers = pgTable("staff_members", {
   jobTitle: text("job_title").notNull(),
   avatarRelativePath: text("avatar_relative_path"),
   contactEmail: text("contact_email"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Đường dây nóng — số điện thoại các dịch vụ công (hiển thị CMS & ứng dụng). */
+export const publicServiceHotlines = pgTable("public_service_hotlines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Tên dịch vụ / bộ phận (vd. Một cửa, Bộ phận tiếp dân). */
+  serviceName: text("service_name").notNull(),
+  phone: text("phone").notNull(),
+  /** Ghi chú ngắn: giờ làm việc, phạm vi… */
+  note: text("note"),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
@@ -95,6 +150,7 @@ export const workSchedules = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
   uploadedFiles: many(files),
+  answeredCitizenFeedback: many(citizenFeedback),
 }));
 
 export const workScheduleTypesRelations = relations(workScheduleTypes, ({ many }) => ({
@@ -116,5 +172,20 @@ export const workSchedulesRelations = relations(workSchedules, ({ one }) => ({
   scheduleType: one(workScheduleTypes, {
     fields: [workSchedules.typeId],
     references: [workScheduleTypes.id],
+  }),
+}));
+
+export const citizenAccountsRelations = relations(citizenAccounts, ({ many }) => ({
+  feedbackEntries: many(citizenFeedback),
+}));
+
+export const citizenFeedbackRelations = relations(citizenFeedback, ({ one }) => ({
+  citizenAccount: one(citizenAccounts, {
+    fields: [citizenFeedback.citizenAccountId],
+    references: [citizenAccounts.id],
+  }),
+  answeredByUser: one(users, {
+    fields: [citizenFeedback.answeredByUserId],
+    references: [users.id],
   }),
 }));

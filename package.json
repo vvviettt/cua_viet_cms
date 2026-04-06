@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed-admin.ts",
-    "db:seed:staff": "tsx scripts/seed-staff.ts"
+    "db:seed:staff": "tsx scripts/seed-staff.ts",
+    "db:seed:feedback": "tsx scripts/seed-citizen-feedback.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

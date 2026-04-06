@@ -19,6 +19,16 @@ const modules: {
       href: "/can-bo",
     },
     {
+      title: "Phản ánh, kiến nghị",
+      desc: "Theo dõi và cập nhật trạng thái xử lý phản ánh, kiến nghị do người dân gửi qua ứng dụng.",
+      href: "/phan-anh-kien-nghi",
+    },
+    {
+      title: "Đường dây nóng",
+      desc: "Quản lý danh sách số điện thoại các dịch vụ công để hiển thị trên ứng dụng và cổng thông tin.",
+      href: "/duong-day-nong",
+    },
+    {
       title: "Tin tức — thông báo",
       desc: "Soạn, đăng và quản lý bài viết hiển thị ra cổng công khai.",
       href: "#",
@@ -44,7 +54,7 @@ export default async function AdminHomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-10">
       <header className="border-b border-zinc-200 pb-8">
-        <p className="text-sm font-medium text-[var(--portal-primary)]">Bảng điều khiển</p>
+        <p className="text-sm font-medium text-(--portal-primary)">Bảng điều khiển</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
           Xin chào{session?.name ? `, ${session.name}` : ""}
         </h1>

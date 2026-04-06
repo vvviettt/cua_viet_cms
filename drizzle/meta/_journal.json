@@ -36,6 +36,69 @@
       "when": 1775445000000,
       "tag": "0004_staff_members",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775446000000,
+      "tag": "0005_citizen_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775447000000,
+      "tag": "0006_citizen_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775448000000,
+      "tag": "0007_citizen_feedback_account_fk",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775449000000,
+      "tag": "0008_citizen_accounts_id_pk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775450000000,
+      "tag": "0009_citizen_feedback_submitter_from_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775451000000,
+      "tag": "0010_citizen_feedback_answered_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775452000000,
+      "tag": "0011_citizen_feedback_staff_reply",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1775453000000,
+      "tag": "0012_citizen_feedback_hidden_from_app",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1775454000000,
+      "tag": "0013_public_service_hotlines",
+      "breakpoints": true
     }
   ]
 }
