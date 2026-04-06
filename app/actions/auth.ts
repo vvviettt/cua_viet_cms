@@ -3,10 +3,13 @@
 import { compareSync } from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { resolveCookieSecure } from "@/lib/cookie-secure";
 import { SESSION_COOKIE } from "@/lib/constants";
 import { getUserByEmailForAuth } from "@/lib/db/users";
+import { serializeSessionPayload } from "@/lib/session-cookie";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+
 
 export type AuthState = { error?: string };
 
@@ -33,9 +36,10 @@ export async function login(
   }
 
   const jar = await cookies();
+  const secure = await resolveCookieSecure();
   jar.set(
     SESSION_COOKIE,
-    JSON.stringify({
+    serializeSessionPayload({
       userId: user.id,
       email: user.email,
       role: user.role,
@@ -46,7 +50,7 @@ export async function login(
       sameSite: "lax",
       path: "/",
       maxAge: COOKIE_MAX_AGE,
-      secure: process.env.NODE_ENV === "production",
+      secure,
     },
   );
 
@@ -55,6 +59,7 @@ export async function login(
 
 export async function logout() {
   const jar = await cookies();
-  jar.delete(SESSION_COOKIE);
+  const secure = await resolveCookieSecure();
+  jar.delete({ name: SESSION_COOKIE, path: "/", sameSite: "lax", secure });
   redirect("/dang-nhap");
 }
