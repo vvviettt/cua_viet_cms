@@ -1,5 +1,6 @@
-import { count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { getDb } from "@/lib/db";
+import { findCitizenAccountIdByPhone } from "@/lib/db/citizen-accounts";
 import { citizenAccounts, citizenFeedback, users } from "@/lib/db/schema";
 import type {
   CitizenFeedbackKind,
@@ -8,6 +9,114 @@ import type {
 } from "@/lib/citizen-feedback/types";
 
 export const CITIZEN_FEEDBACK_PAGE_SIZE = 15;
+
+/** Bản ghi trả về API công khai / ứng dụng (không lộ ghi chú nội bộ). */
+export type PublicCitizenFeedbackListItem = {
+  id: string;
+  kind: CitizenFeedbackKind;
+  title: string;
+  status: CitizenFeedbackStatus;
+  staffReply: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PublicCitizenFeedbackDetail = PublicCitizenFeedbackListItem & {
+  content: string;
+};
+
+export const PUBLIC_CITIZEN_FEEDBACK_PAGE_SIZE = 15;
+
+function toPublicListItem(row: typeof citizenFeedback.$inferSelect): PublicCitizenFeedbackListItem {
+  return {
+    id: row.id,
+    kind: row.kind as CitizenFeedbackKind,
+    title: row.title,
+    status: row.status as CitizenFeedbackStatus,
+    staffReply: row.staffReply ?? null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Danh sách phản ánh của một SĐT (chỉ bản ghi không ẩn khỏi app). */
+export async function listPublicCitizenFeedbackByPhone(opts: {
+  phone: string;
+  limit: number;
+  offset: number;
+}): Promise<{
+  items: PublicCitizenFeedbackListItem[];
+  hasMore: boolean;
+  nextOffset: number;
+}> {
+  const accountId = await findCitizenAccountIdByPhone(opts.phone);
+  if (!accountId) {
+    return { items: [], hasMore: false, nextOffset: 0 };
+  }
+
+  const fetchSize = opts.limit + 1;
+  const rows = await getDb()
+    .select({ row: citizenFeedback })
+    .from(citizenFeedback)
+    .where(
+      and(
+        eq(citizenFeedback.citizenAccountId, accountId),
+        eq(citizenFeedback.hiddenFromApp, false),
+      ),
+    )
+    .orderBy(desc(citizenFeedback.createdAt))
+    .limit(fetchSize)
+    .offset(opts.offset);
+
+  const hasMore = rows.length > opts.limit;
+  const slice = hasMore ? rows.slice(0, opts.limit) : rows;
+  return {
+    items: slice.map((r) => toPublicListItem(r.row)),
+    hasMore,
+    nextOffset: opts.offset + slice.length,
+  };
+}
+
+/** Bảng công khai: mọi phản ánh không ẩn khỏi app, mới nhất trước. */
+export async function listPublicCitizenFeedbackFeedPaginated(opts: {
+  limit: number;
+  offset: number;
+}): Promise<{
+  items: PublicCitizenFeedbackListItem[];
+  hasMore: boolean;
+  nextOffset: number;
+}> {
+  const fetchSize = opts.limit + 1;
+  const rows = await getDb()
+    .select({ row: citizenFeedback })
+    .from(citizenFeedback)
+    .where(eq(citizenFeedback.hiddenFromApp, false))
+    .orderBy(desc(citizenFeedback.createdAt))
+    .limit(fetchSize)
+    .offset(opts.offset);
+
+  const hasMore = rows.length > opts.limit;
+  const slice = hasMore ? rows.slice(0, opts.limit) : rows;
+  return {
+    items: slice.map((r) => toPublicListItem(r.row)),
+    hasMore,
+    nextOffset: opts.offset + slice.length,
+  };
+}
+
+/** Chi tiết công khai theo id (nếu không bị ẩn). */
+export async function findPublicCitizenFeedbackById(
+  id: string,
+): Promise<PublicCitizenFeedbackDetail | null> {
+  const [r] = await getDb()
+    .select({ row: citizenFeedback })
+    .from(citizenFeedback)
+    .where(and(eq(citizenFeedback.id, id), eq(citizenFeedback.hiddenFromApp, false)))
+    .limit(1);
+  if (!r) return null;
+  const base = toPublicListItem(r.row);
+  return { ...base, content: r.row.content };
+}
 
 function answererDisplayName(fullName: string | null, email: string | null): string | null {
   const n = fullName?.trim();

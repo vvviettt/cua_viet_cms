@@ -29,10 +29,9 @@ const modules: {
       href: "/duong-day-nong",
     },
     {
-      title: "Tin tức — thông báo",
+      title: "Tin tức",
       desc: "Soạn, đăng và quản lý bài viết hiển thị ra cổng công khai.",
-      href: "#",
-      soon: true,
+      href: "/tin-tuc",
     },
     {
       title: "Danh mục & trang tĩnh",

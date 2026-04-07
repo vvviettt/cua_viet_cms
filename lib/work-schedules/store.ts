@@ -49,6 +49,106 @@ export async function listWorkSchedules(): Promise<WorkScheduleRecord[]> {
 
 export const WORK_SCHEDULE_LIST_PAGE_SIZE = 10;
 
+/** Lịch theo mã loại (vd. `hdnd_ubnd_tiep_dan`) — chỉ loại đang active; dùng cho API công khai / ứng dụng. */
+export async function listPublicWorkSchedulesByTypeCode(
+  typeCode: string,
+  page: number,
+  pageSize: number,
+): Promise<{
+  items: WorkScheduleRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
+  const db = getDb();
+  const typeWhere = and(eq(workScheduleTypes.code, typeCode), eq(workScheduleTypes.isActive, true));
+
+  const [countRow] = await db
+    .select({ c: count() })
+    .from(workSchedules)
+    .innerJoin(workScheduleTypes, eq(workSchedules.typeId, workScheduleTypes.id))
+    .where(typeWhere);
+
+  const total = Number(countRow?.c ?? 0);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+  const safePage = totalPages === 0 ? 1 : Math.min(Math.max(1, page), totalPages);
+  const offset = totalPages === 0 ? 0 : (safePage - 1) * pageSize;
+
+  const rows = await db
+    .select({
+      schedule: workSchedules,
+      typeLabel: workScheduleTypes.label,
+      typeCode: workScheduleTypes.code,
+    })
+    .from(workSchedules)
+    .innerJoin(workScheduleTypes, eq(workSchedules.typeId, workScheduleTypes.id))
+    .where(typeWhere)
+    .orderBy(
+      asc(workSchedules.periodKind),
+      desc(workSchedules.periodValue),
+      desc(workSchedules.updatedAt),
+    )
+    .limit(pageSize)
+    .offset(offset);
+
+  return {
+    items: rows.map(toRecord),
+    total,
+    page: safePage,
+    pageSize,
+  };
+}
+
+/** Tất cả lịch thuộc loại đang active — phân trang, dùng API công khai. */
+export async function listPublicWorkSchedulesAllActiveTypesPaginated(
+  page: number,
+  pageSize: number,
+): Promise<{
+  items: WorkScheduleRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
+  const db = getDb();
+  const publicWhere = eq(workScheduleTypes.isActive, true);
+
+  const [countRow] = await db
+    .select({ c: count() })
+    .from(workSchedules)
+    .innerJoin(workScheduleTypes, eq(workSchedules.typeId, workScheduleTypes.id))
+    .where(publicWhere);
+
+  const total = Number(countRow?.c ?? 0);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+  const safePage = totalPages === 0 ? 1 : Math.min(Math.max(1, page), totalPages);
+  const offset = totalPages === 0 ? 0 : (safePage - 1) * pageSize;
+
+  const rows = await db
+    .select({
+      schedule: workSchedules,
+      typeLabel: workScheduleTypes.label,
+      typeCode: workScheduleTypes.code,
+    })
+    .from(workSchedules)
+    .innerJoin(workScheduleTypes, eq(workSchedules.typeId, workScheduleTypes.id))
+    .where(publicWhere)
+    .orderBy(
+      asc(workScheduleTypes.sortOrder),
+      asc(workSchedules.periodKind),
+      desc(workSchedules.periodValue),
+      desc(workSchedules.updatedAt),
+    )
+    .limit(pageSize)
+    .offset(offset);
+
+  return {
+    items: rows.map(toRecord),
+    total,
+    page: safePage,
+    pageSize,
+  };
+}
+
 export async function listWorkSchedulesPaginated(
   page: number,
   pageSize: number,

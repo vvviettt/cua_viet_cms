@@ -13,9 +13,18 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed-admin.ts",
     "db:seed:staff": "tsx scripts/seed-staff.ts",
-    "db:seed:feedback": "tsx scripts/seed-citizen-feedback.ts"
+    "db:seed:feedback": "tsx scripts/seed-citizen-feedback.ts",
+    "db:seed:news-categories": "tsx scripts/seed-news-categories.ts",
+    "cron:cleanup-news-content-images": "tsx scripts/cleanup-news-content-images.ts"
   },
   "dependencies": {
+    "@editorjs/delimiter": "^1.4.2",
+    "@editorjs/editorjs": "^2.31.5",
+    "@editorjs/embed": "^2.7.7",
+    "@editorjs/header": "^2.8.8",
+    "@editorjs/image": "^2.10.3",
+    "@editorjs/list": "^2.0.9",
+    "@editorjs/quote": "^2.7.6",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

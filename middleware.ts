@@ -10,6 +10,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  /** API & file tĩnh phục vụ ứng dụng công dân (không dùng cookie CMS). */
+  if (pathname.startsWith("/api/public") || pathname.startsWith("/uploads/")) {
+    return NextResponse.next();
+  }
+
+  /** Cron nội bộ: xác thực bằng CRON_SECRET trong route, không dùng cookie CMS. */
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   const session = parseSessionPayload(request.cookies.get(SESSION_COOKIE)?.value);
   if (!session) {
     const url = request.nextUrl.clone();

@@ -99,6 +99,34 @@
       "when": 1775454000000,
       "tag": "0013_public_service_hotlines",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1775455000000,
+      "tag": "0014_news_articles",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1775456000000,
+      "tag": "0015_news_article_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1775457000000,
+      "tag": "0016_news_articles_category_required",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1775458000000,
+      "tag": "0017_staff_member_ratings",
+      "breakpoints": true
     }
   ]
 }

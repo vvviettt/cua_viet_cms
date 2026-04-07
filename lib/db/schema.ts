@@ -13,7 +13,12 @@ import {
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "editor", "viewer"]);
 
-export const fileCategoryEnum = pgEnum("file_category", ["work_schedule", "document", "other"]);
+export const fileCategoryEnum = pgEnum("file_category", [
+  "work_schedule",
+  "document",
+  "other",
+  "news_banner",
+]);
 
 export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
 
@@ -108,6 +113,25 @@ export const staffMembers = pgTable("staff_members", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const staffMemberRatings = pgTable(
+  "staff_member_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    citizenAccountId: uuid("citizen_account_id")
+      .notNull()
+      .references(() => citizenAccounts.id, { onDelete: "cascade" }),
+    staffMemberId: uuid("staff_member_id")
+      .notNull()
+      .references(() => staffMembers.id, { onDelete: "cascade" }),
+    stars: integer("stars").notNull(),
+    detail: text("detail"),
+    /** YYYY-MM */
+    monthKey: text("month_key").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [unique("staff_member_ratings_unique_per_month").on(t.citizenAccountId, t.staffMemberId, t.monthKey)],
+);
+
 /** Đường dây nóng — số điện thoại các dịch vụ công (hiển thị CMS & ứng dụng). */
 export const publicServiceHotlines = pgTable("public_service_hotlines", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -120,6 +144,36 @@ export const publicServiceHotlines = pgTable("public_service_hotlines", {
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+/** Danh mục tin tức — tiêu đề hiển thị. */
+export const newsArticleCategories = pgTable("news_article_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Tin tức / thông báo — nội dung soạn bằng Editor.js (JSON). */
+export const newsArticles = pgTable("news_articles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  categoryId: uuid("category_id")
+    .notNull()
+    .references(() => newsArticleCategories.id, { onDelete: "restrict" }),
+  bannerFileId: uuid("banner_file_id")
+    .notNull()
+    .references(() => files.id),
+  /** Chuỗi JSON OutputData của Editor.js */
+  contentJson: text("content_json").notNull(),
+  createdByUserId: uuid("created_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  /** Bật thì hiển thị trên API / ứng dụng công khai. */
+  isVisible: boolean("is_visible").notNull().default(true),
 });
 
 export const workSchedules = pgTable(
@@ -151,17 +205,19 @@ export const workSchedules = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   uploadedFiles: many(files),
   answeredCitizenFeedback: many(citizenFeedback),
+  newsArticlesAuthored: many(newsArticles),
 }));
 
 export const workScheduleTypesRelations = relations(workScheduleTypes, ({ many }) => ({
   schedules: many(workSchedules),
 }));
 
-export const filesRelations = relations(files, ({ one }) => ({
+export const filesRelations = relations(files, ({ one, many }) => ({
   uploadedBy: one(users, {
     fields: [files.uploadedById],
     references: [users.id],
   }),
+  newsBanners: many(newsArticles),
 }));
 
 export const workSchedulesRelations = relations(workSchedules, ({ one }) => ({
@@ -177,6 +233,22 @@ export const workSchedulesRelations = relations(workSchedules, ({ one }) => ({
 
 export const citizenAccountsRelations = relations(citizenAccounts, ({ many }) => ({
   feedbackEntries: many(citizenFeedback),
+  staffRatings: many(staffMemberRatings),
+}));
+
+export const staffMembersRelations = relations(staffMembers, ({ many }) => ({
+  ratings: many(staffMemberRatings),
+}));
+
+export const staffMemberRatingsRelations = relations(staffMemberRatings, ({ one }) => ({
+  citizenAccount: one(citizenAccounts, {
+    fields: [staffMemberRatings.citizenAccountId],
+    references: [citizenAccounts.id],
+  }),
+  staffMember: one(staffMembers, {
+    fields: [staffMemberRatings.staffMemberId],
+    references: [staffMembers.id],
+  }),
 }));
 
 export const citizenFeedbackRelations = relations(citizenFeedback, ({ one }) => ({
@@ -186,6 +258,25 @@ export const citizenFeedbackRelations = relations(citizenFeedback, ({ one }) => 
   }),
   answeredByUser: one(users, {
     fields: [citizenFeedback.answeredByUserId],
+    references: [users.id],
+  }),
+}));
+
+export const newsArticleCategoriesRelations = relations(newsArticleCategories, ({ many }) => ({
+  articles: many(newsArticles),
+}));
+
+export const newsArticlesRelations = relations(newsArticles, ({ one }) => ({
+  category: one(newsArticleCategories, {
+    fields: [newsArticles.categoryId],
+    references: [newsArticleCategories.id],
+  }),
+  bannerFile: one(files, {
+    fields: [newsArticles.bannerFileId],
+    references: [files.id],
+  }),
+  createdBy: one(users, {
+    fields: [newsArticles.createdByUserId],
     references: [users.id],
   }),
 }));
