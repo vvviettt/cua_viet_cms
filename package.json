@@ -15,6 +15,7 @@
     "db:seed:staff": "tsx scripts/seed-staff.ts",
     "db:seed:feedback": "tsx scripts/seed-citizen-feedback.ts",
     "db:seed:news-categories": "tsx scripts/seed-news-categories.ts",
+    "db:seed:app-mobile": "tsx scripts/seed-app-mobile-config.ts",
     "cron:cleanup-news-content-images": "tsx scripts/cleanup-news-content-images.ts"
   },
   "dependencies": {

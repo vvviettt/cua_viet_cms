@@ -44,3 +44,4 @@ next-env.d.ts
 # Lịch làm việc — file PDF tải lên (giữ thư mục)
 /public/uploads/lich-lam-viec/*
 !/public/uploads/lich-lam-viec/.gitkeep
+public/uploads/

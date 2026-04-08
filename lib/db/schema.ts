@@ -18,9 +18,13 @@ export const fileCategoryEnum = pgEnum("file_category", [
   "document",
   "other",
   "news_banner",
+  "app_home_banner",
 ]);
 
 export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
+
+/** Mục menu trang chủ ứng dụng — native (route cố định trong code) hoặc webview (URL). */
+export const appHomeItemKindEnum = pgEnum("app_home_item_kind", ["native", "webview"]);
 
 /** Phản ánh vs kiến nghị */
 export const citizenFeedbackKindEnum = pgEnum("citizen_feedback_kind", ["phan_anh", "kien_nghi"]);
@@ -133,6 +137,58 @@ export const staffMemberRatings = pgTable(
 );
 
 /** Đường dây nóng — số điện thoại các dịch vụ công (hiển thị CMS & ứng dụng). */
+/** Màu seed + tiêu đề hero trang chủ app (một bản ghi — seed mặc định). */
+export const appMobileTheme = pgTable("app_mobile_theme", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  primarySeedHex: text("primary_seed_hex").notNull().default("#0D47A1"),
+  homeHeroTitle: text("home_hero_title")
+    .notNull()
+    .default("Chuyên trang chuyển đổi số\nXã Cửa Việt"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Nhóm mục trên trang chủ app. */
+export const appMobileHomeSections = pgTable("app_mobile_home_sections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Từng ô dịch vụ / liên kết trên trang chủ app. */
+export const appMobileHomeItems = pgTable("app_mobile_home_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sectionId: uuid("section_id")
+    .notNull()
+    .references(() => appMobileHomeSections.id, { onDelete: "cascade" }),
+  kind: appHomeItemKindEnum("kind").notNull(),
+  /** Khi kind=native: mã route trong app (vd. citizen_reception_schedule). */
+  routeId: text("route_id"),
+  /** Khi kind=webview: URL đầy đủ. */
+  webUrl: text("web_url"),
+  label: text("label").notNull(),
+  iconKey: text("icon_key").notNull().default("help_outline"),
+  accentHex: text("accent_hex").notNull().default("#1565C0"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Banner carousel trang chủ app — ảnh lưu qua bảng files. */
+export const appMobileBanners = pgTable("app_mobile_banners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fileId: uuid("file_id")
+    .notNull()
+    .references(() => files.id, { onDelete: "restrict" }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const publicServiceHotlines = pgTable("public_service_hotlines", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** Tên dịch vụ / bộ phận (vd. Một cửa, Bộ phận tiếp dân). */

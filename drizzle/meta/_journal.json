@@ -127,6 +127,13 @@
       "when": 1775458000000,
       "tag": "0017_staff_member_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1775459000000,
+      "tag": "0018_app_mobile_config",
+      "breakpoints": true
     }
   ]
 }

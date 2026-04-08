@@ -34,6 +34,11 @@ const modules: {
       href: "/tin-tuc",
     },
     {
+      title: "Ứng dụng di động",
+      desc: "Menu trang chủ, banner carousel và màu chủ đạo — đồng bộ xuống app qua API công khai.",
+      href: "/cau-hinh-app",
+    },
+    {
       title: "Danh mục & trang tĩnh",
       desc: "Cập nhật nội dung các mục cố định trên website.",
       href: "#",
