@@ -8,6 +8,7 @@ import {
   type AppMobileFormState,
 } from "@/app/actions/app-mobile-config";
 import { APP_MOBILE_NATIVE_ROUTE_IDS } from "@/lib/app-mobile-native-routes";
+import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 import { AppMobileHexField } from "./app-mobile-hex-field";
 import { AppMobileIconPicker } from "./app-mobile-icon-picker";
 
@@ -31,6 +32,7 @@ type EditProps = {
   defaultWebUrl: string;
   defaultLabel: string;
   defaultIconKey: string;
+  defaultIconPreviewSrc?: string;
   defaultAccentHex: string;
 };
 
@@ -44,6 +46,8 @@ export function AppItemForm(props: Props) {
   const isEdit = props.mode === "edit";
   const initialKind: "native" | "webview" = isEdit ? props.defaultKind : "native";
   const [kind, setKind] = useState<"native" | "webview">(initialKind);
+  const initialUseCustomIcon = isEdit ? Boolean(props.defaultIconPreviewSrc) : false;
+  const [useCustomIcon, setUseCustomIcon] = useState<boolean>(initialUseCustomIcon);
 
   useEffect(() => {
     if (!state?.ok) return;
@@ -141,11 +145,53 @@ export function AppItemForm(props: Props) {
         />
       </div>
 
-      <AppMobileIconPicker
-        name="iconKey"
-        defaultKey={isEdit ? props.defaultIconKey : "help_outline"}
-        disabled={pending}
-      />
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-zinc-700">Biểu tượng</p>
+            
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-zinc-800">
+            <input
+              type="checkbox"
+              checked={useCustomIcon}
+              disabled={pending}
+              onChange={(e) => setUseCustomIcon(e.target.checked)}
+              className="size-4 rounded border-zinc-300"
+            />
+            Dùng icon tuỳ chỉnh
+          </label>
+        </div>
+
+        <input type="hidden" name="useCustomIcon" value={useCustomIcon ? "true" : "false"} />
+
+        {useCustomIcon ? (
+          <div className="mt-3">
+            <input type="hidden" name="iconKey" value="help_outline" />
+            <FileLocalPickRow
+              id="item-icon-file"
+              name="iconFile"
+              accept="image/svg+xml,.svg"
+              disabled={pending}
+              title="Upload icon SVG"
+              emptyLabel="Chưa chọn icon SVG…"
+              buttonLabel="Chọn icon"
+              existingDisplayName={isEdit && props.defaultIconPreviewSrc ? "Icon SVG hiện tại" : null}
+              existingFileHref={isEdit ? props.defaultIconPreviewSrc : undefined}
+              existingFileLinkLabel="Xem SVG"
+            />
+            <p className="mt-1 text-xs text-zinc-500">Chỉ nhận SVG. Tối đa 512KB.</p>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <AppMobileIconPicker
+              name="iconKey"
+              defaultKey={isEdit ? props.defaultIconKey : "help_outline"}
+              disabled={pending}
+            />
+          </div>
+        )}
+      </div>
 
       <AppMobileHexField
         name="accentHex"

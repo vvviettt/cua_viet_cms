@@ -1,5 +1,5 @@
 import { compareSync, hashSync } from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { citizenAccounts } from "@/lib/db/schema";
 
@@ -166,4 +166,42 @@ export async function upsertCitizenAccountFromPublicForm(input: {
 
   if (!row) throw new Error("Không tạo được tài khoản công dân.");
   return row.id;
+}
+
+export type CitizenAccountListItem = {
+  id: string;
+  phone: string;
+  fullName: string;
+  address: string;
+  email: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function listCitizenAccounts(): Promise<CitizenAccountListItem[]> {
+  return await getDb()
+    .select({
+      id: citizenAccounts.id,
+      phone: citizenAccounts.phone,
+      fullName: citizenAccounts.fullName,
+      address: citizenAccounts.address,
+      email: citizenAccounts.email,
+      isActive: citizenAccounts.isActive,
+      createdAt: citizenAccounts.createdAt,
+      updatedAt: citizenAccounts.updatedAt,
+    })
+    .from(citizenAccounts)
+    .orderBy(desc(citizenAccounts.createdAt));
+}
+
+export async function setCitizenAccountActiveById(
+  id: string,
+  isActive: boolean,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await getDb()
+    .update(citizenAccounts)
+    .set({ isActive, updatedAt: now })
+    .where(eq(citizenAccounts.id, id));
 }

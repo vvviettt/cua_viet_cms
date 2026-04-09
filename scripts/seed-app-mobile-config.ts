@@ -83,6 +83,7 @@ async function main() {
       webUrl: extra.webUrl ?? null,
       label,
       iconKey,
+      iconFileId: null,
       accentHex,
       sortOrder: order++,
       isActive: true,

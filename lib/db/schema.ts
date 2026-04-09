@@ -19,12 +19,19 @@ export const fileCategoryEnum = pgEnum("file_category", [
   "other",
   "news_banner",
   "app_home_banner",
+  "app_home_icon",
 ]);
 
 export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
 
 /** Mục menu trang chủ ứng dụng — native (route cố định trong code) hoặc webview (URL). */
 export const appHomeItemKindEnum = pgEnum("app_home_item_kind", ["native", "webview"]);
+
+/** Vị trí hiển thị ảnh dạng carousel trên trang chủ app. */
+export const appHomeBannerPlacementEnum = pgEnum("app_home_banner_placement", [
+  "top",
+  "after_section_2",
+]);
 
 /** Phản ánh vs kiến nghị */
 export const citizenFeedbackKindEnum = pgEnum("citizen_feedback_kind", ["phan_anh", "kien_nghi"]);
@@ -81,6 +88,7 @@ export const citizenAccounts = pgTable("citizen_accounts", {
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   address: text("address").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -170,6 +178,7 @@ export const appMobileHomeItems = pgTable("app_mobile_home_items", {
   webUrl: text("web_url"),
   label: text("label").notNull(),
   iconKey: text("icon_key").notNull().default("help_outline"),
+  iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
   accentHex: text("accent_hex").notNull().default("#1565C0"),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
@@ -183,6 +192,7 @@ export const appMobileBanners = pgTable("app_mobile_banners", {
   fileId: uuid("file_id")
     .notNull()
     .references(() => files.id, { onDelete: "restrict" }),
+  placement: appHomeBannerPlacementEnum("placement").notNull().default("top"),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),

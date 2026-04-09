@@ -39,16 +39,9 @@ const modules: {
       href: "/cau-hinh-app",
     },
     {
-      title: "Danh mục & trang tĩnh",
-      desc: "Cập nhật nội dung các mục cố định trên website.",
-      href: "#",
-      soon: true,
-    },
-    {
-      title: "Phương tiện",
-      desc: "Tải lên và quản lý hình ảnh, tệp đính kèm.",
-      href: "#",
-      soon: true,
+      title: "Quản lý người dùng",
+      desc: "Quản lý tài khoản người dân đăng nhập ứng dụng (bật/tắt active/inactive).",
+      href: "/nguoi-dung",
     },
   ];
 
@@ -88,7 +81,7 @@ export default async function AdminHomePage() {
                 </div>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-zinc-600">{m.desc}</p>
                 {m.href !== "#" ? (
-                  <span className="mt-4 text-sm font-medium text-[var(--portal-primary)]">Mở module →</span>
+                  <span className="mt-4 text-sm font-medium text-(--portal-primary)">Mở module →</span>
                 ) : null}
               </>
             );

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNewsArticleEntry, type NewsArticleFormState } from "@/app/actions/news-articles";
@@ -8,6 +9,7 @@ import {
   type NewsCategoryOption,
 } from "@/components/news/news-category-picker";
 import { NewsBodyEditor, type NewsEditorHandle } from "@/components/news/news-body-editor";
+import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 
 const fieldClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25";
@@ -37,8 +39,7 @@ export function CreateNewsForm({ canEdit, categories }: Props) {
     };
   }, [bannerPreviewUrl]);
 
-  function onBannerFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  function onBannerFileChange(file: File | null) {
     setBannerPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return file ? URL.createObjectURL(file) : null;
@@ -133,18 +134,15 @@ export function CreateNewsForm({ canEdit, categories }: Props) {
         </div>
 
         <div>
-          <label htmlFor="news-banner" className="mb-1 block text-sm font-medium text-zinc-700">
-            Ảnh banner <span className="text-red-600">*</span>
-          </label>
-          <input
+          <FileLocalPickRow
             id="news-banner"
             name="banner"
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            required
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
             disabled={pending}
-            onChange={onBannerFileChange}
-            className={`${fieldClass} py-2 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm`}
+            title="Ảnh banner (bắt buộc)"
+            emptyLabel="Chưa chọn ảnh…"
+            buttonLabel="Chọn ảnh"
+            onFileChange={onBannerFileChange}
           />
           <p className="mt-1 text-xs text-zinc-500">JPG, PNG, WEBP hoặc GIF — tối đa 8MB.</p>
           {bannerPreviewUrl ? (
@@ -152,12 +150,7 @@ export function CreateNewsForm({ canEdit, categories }: Props) {
               <p className="mb-2 text-xs font-medium text-zinc-600">Xem trước banner (16:9)</p>
               <div className="max-w-3xl overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 shadow-inner">
                 <div className="relative aspect-video w-full">
-                  {/* blob: URL — không dùng next/image */}
-                  <img
-                    src={bannerPreviewUrl}
-                    alt="Xem trước ảnh banner"
-                    className="size-full object-cover"
-                  />
+                  <Image src={bannerPreviewUrl} alt="Xem trước ảnh banner" fill className="object-cover" unoptimized />
                 </div>
               </div>
             </div>

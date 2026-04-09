@@ -18,6 +18,8 @@ export type AppMobileBannerCmsRow = {
   file: typeof files.$inferSelect;
 };
 
+export type AppHomeBannerPlacement = "top" | "after_section_2";
+
 export async function getAppMobileThemeRow(): Promise<AppMobileThemeRow | null> {
   const [row] = await getDb().select().from(appMobileTheme).limit(1);
   return row ?? null;
@@ -85,8 +87,8 @@ export async function nextAppMobileSectionSortOrder(): Promise<number> {
   return Math.max(...rows.map((r) => r.sortOrder)) + 1;
 }
 
-export async function nextAppMobileBannerSortOrder(): Promise<number> {
-  const rows = await listAppMobileBannersForCms();
+export async function nextAppMobileBannerSortOrder(placement: AppHomeBannerPlacement): Promise<number> {
+  const rows = await listAppMobileBannersForCms(placement);
   if (rows.length === 0) return 0;
   return Math.max(...rows.map((r) => r.banner.sortOrder)) + 1;
 }
@@ -143,8 +145,12 @@ export async function moveAppMobileItemRelative(
   });
 }
 
-export async function moveAppMobileBannerRelative(bannerId: string, direction: "up" | "down"): Promise<void> {
-  const rows = await listAppMobileBannersForCms();
+export async function moveAppMobileBannerRelative(
+  bannerId: string,
+  placement: AppHomeBannerPlacement,
+  direction: "up" | "down",
+): Promise<void> {
+  const rows = await listAppMobileBannersForCms(placement);
   const idx = rows.findIndex((r) => r.banner.id === bannerId);
   if (idx < 0) return;
   const j = direction === "up" ? idx - 1 : idx + 1;
@@ -248,6 +254,7 @@ export async function insertAppMobileItem(values: {
   webUrl: string | null;
   label: string;
   iconKey: string;
+  iconFileId: string | null;
   accentHex: string;
   sortOrder: number;
   isActive: boolean;
@@ -262,6 +269,7 @@ export async function insertAppMobileItem(values: {
       webUrl: values.webUrl,
       label: values.label,
       iconKey: values.iconKey,
+      iconFileId: values.iconFileId,
       accentHex: values.accentHex,
       sortOrder: values.sortOrder,
       isActive: values.isActive,
@@ -282,6 +290,7 @@ export async function updateAppMobileItemContent(
     webUrl: string | null;
     label: string;
     iconKey: string;
+    iconFileId: string | null;
     accentHex: string;
   },
 ): Promise<void> {
@@ -294,6 +303,7 @@ export async function updateAppMobileItemContent(
       webUrl: values.webUrl,
       label: values.label,
       iconKey: values.iconKey,
+      iconFileId: values.iconFileId,
       accentHex: values.accentHex,
       updatedAt: now,
     })
@@ -304,7 +314,9 @@ export async function deleteAppMobileItem(id: string): Promise<void> {
   await getDb().delete(appMobileHomeItems).where(eq(appMobileHomeItems.id, id));
 }
 
-export async function listAppMobileBannersForCms(): Promise<AppMobileBannerCmsRow[]> {
+export async function listAppMobileBannersForCms(
+  placement: AppHomeBannerPlacement,
+): Promise<AppMobileBannerCmsRow[]> {
   const rows = await getDb()
     .select({
       banner: appMobileBanners,
@@ -312,6 +324,7 @@ export async function listAppMobileBannersForCms(): Promise<AppMobileBannerCmsRo
     })
     .from(appMobileBanners)
     .innerJoin(files, eq(appMobileBanners.fileId, files.id))
+    .where(eq(appMobileBanners.placement, placement))
     .orderBy(asc(appMobileBanners.sortOrder), asc(appMobileBanners.createdAt));
 
   return rows;
@@ -332,6 +345,7 @@ export async function findAppMobileBannerById(id: string): Promise<AppMobileBann
 
 export async function insertAppMobileBanner(values: {
   fileId: string;
+  placement: AppHomeBannerPlacement;
   sortOrder: number;
   isActive: boolean;
 }): Promise<string> {
@@ -340,6 +354,7 @@ export async function insertAppMobileBanner(values: {
     .insert(appMobileBanners)
     .values({
       fileId: values.fileId,
+      placement: values.placement,
       sortOrder: values.sortOrder,
       isActive: values.isActive,
       createdAt: now,
@@ -383,6 +398,8 @@ export type PublicAppMobileItem = {
   webUrl: string | null;
   label: string;
   iconKey: string;
+  iconImagePath: string | null;
+  iconImageUrl: string | null;
   accentHex: string;
   sortOrder: number;
 };
@@ -401,6 +418,10 @@ export type PublicAppMobileConfig = {
     homeHeroTitle: string;
   };
   banners: PublicAppMobileBanner[];
+  midCarousel: {
+    insertAfterSectionIndex: number;
+    banners: PublicAppMobileBanner[];
+  };
   sections: PublicAppMobileSection[];
 };
 
@@ -424,28 +445,46 @@ export async function buildPublicAppMobileConfig(requestOrigin: string): Promise
     .orderBy(asc(appMobileHomeSections.sortOrder), asc(appMobileHomeSections.title));
 
   const itemRows = await getDb()
-    .select()
+    .select({
+      item: appMobileHomeItems,
+      iconFile: files,
+    })
     .from(appMobileHomeItems)
+    .leftJoin(files, eq(appMobileHomeItems.iconFileId, files.id))
     .where(eq(appMobileHomeItems.isActive, true))
     .orderBy(asc(appMobileHomeItems.sortOrder), asc(appMobileHomeItems.label));
 
-  const bannerJoin = await getDb()
+  const bannerTopJoin = await getDb()
     .select({
       banner: appMobileBanners,
       file: files,
     })
     .from(appMobileBanners)
     .innerJoin(files, eq(appMobileBanners.fileId, files.id))
-    .where(eq(appMobileBanners.isActive, true))
+    .where(and(eq(appMobileBanners.isActive, true), eq(appMobileBanners.placement, "top")))
+    .orderBy(asc(appMobileBanners.sortOrder), asc(appMobileBanners.createdAt));
+
+  const bannerMidJoin = await getDb()
+    .select({
+      banner: appMobileBanners,
+      file: files,
+    })
+    .from(appMobileBanners)
+    .innerJoin(files, eq(appMobileBanners.fileId, files.id))
+    .where(and(eq(appMobileBanners.isActive, true), eq(appMobileBanners.placement, "after_section_2")))
     .orderBy(asc(appMobileBanners.sortOrder), asc(appMobileBanners.createdAt));
 
   const itemsBySection = new Map<string, PublicAppMobileItem[]>();
   for (const s of sectionRows) {
     itemsBySection.set(s.id, []);
   }
-  for (const it of itemRows) {
+  for (const { item: it, iconFile } of itemRows) {
     const list = itemsBySection.get(it.sectionId);
     if (!list) continue;
+    const iconImagePath = iconFile?.relativePath ? uploadsPublicHref(iconFile.relativePath) : null;
+    const iconImageUrl = iconImagePath
+      ? `${requestOrigin.replace(/\/$/, "")}${iconImagePath}`
+      : null;
     list.push({
       id: it.id,
       kind: it.kind,
@@ -453,6 +492,8 @@ export async function buildPublicAppMobileConfig(requestOrigin: string): Promise
       webUrl: it.webUrl,
       label: it.label,
       iconKey: it.iconKey,
+      iconImagePath,
+      iconImageUrl,
       accentHex: it.accentHex,
       sortOrder: it.sortOrder,
     });
@@ -468,7 +509,18 @@ export async function buildPublicAppMobileConfig(requestOrigin: string): Promise
     }),
   }));
 
-  const banners: PublicAppMobileBanner[] = bannerJoin.map(({ banner, file }) => {
+  const banners: PublicAppMobileBanner[] = bannerTopJoin.map(({ banner, file }) => {
+    const imagePath = uploadsPublicHref(file.relativePath);
+    const imageUrl = `${requestOrigin.replace(/\/$/, "")}${imagePath}`;
+    return {
+      id: banner.id,
+      sortOrder: banner.sortOrder,
+      imagePath,
+      imageUrl,
+    };
+  });
+
+  const midBanners: PublicAppMobileBanner[] = bannerMidJoin.map(({ banner, file }) => {
     const imagePath = uploadsPublicHref(file.relativePath);
     const imageUrl = `${requestOrigin.replace(/\/$/, "")}${imagePath}`;
     return {
@@ -482,8 +534,9 @@ export async function buildPublicAppMobileConfig(requestOrigin: string): Promise
   const stamps: string[] = [];
   if (themeRow) stamps.push(themeRow.updatedAt);
   for (const s of sectionRows) stamps.push(s.updatedAt);
-  for (const it of itemRows) stamps.push(it.updatedAt);
-  for (const { banner } of bannerJoin) stamps.push(banner.updatedAt);
+  for (const { item: it } of itemRows) stamps.push(it.updatedAt);
+  for (const { banner } of bannerTopJoin) stamps.push(banner.updatedAt);
+  for (const { banner } of bannerMidJoin) stamps.push(banner.updatedAt);
 
   return {
     updatedAt: maxIso(...stamps),
@@ -494,6 +547,10 @@ export async function buildPublicAppMobileConfig(requestOrigin: string): Promise
         }
       : themeDefaults,
     banners,
+    midCarousel: {
+      insertAfterSectionIndex: 2,
+      banners: midBanners,
+    },
     sections,
   };
 }

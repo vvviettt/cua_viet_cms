@@ -3,24 +3,24 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createAppMobileBannerAction, type AppMobileFormState } from "@/app/actions/app-mobile-config";
-
-const fieldClass =
-  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25";
+import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 
 const initial: AppMobileFormState = {};
 
 type Props = {
   canEdit: boolean;
+  placement: "top" | "after_section_2";
+  backTab: "banner" | "carousel";
 };
 
-export function AppBannerCreateForm({ canEdit }: Props) {
+export function AppBannerCreateForm({ canEdit, placement, backTab }: Props) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(createAppMobileBannerAction, initial);
 
   useEffect(() => {
     if (!state?.ok) return;
-    router.push("/cau-hinh-app?tab=banner");
-  }, [state?.ok, router]);
+    router.push(`/cau-hinh-app?tab=${backTab}`);
+  }, [state?.ok, router, backTab]);
 
   if (!canEdit) {
     return null;
@@ -34,26 +34,22 @@ export function AppBannerCreateForm({ canEdit }: Props) {
       </p>
 
       <form action={formAction} className="mt-6 flex flex-col gap-4">
+        <input type="hidden" name="placement" value={placement} />
+        <input type="hidden" name="backTab" value={backTab} />
         {state?.error ? (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
             {state.error}
           </p>
         ) : null}
 
-        <div>
-          <label htmlFor="app-banner-file" className="mb-1 block text-sm font-medium text-zinc-700">
-            File ảnh <span className="text-red-600">*</span>
-          </label>
-          <input
-            id="app-banner-file"
-            name="banner"
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            required
-            disabled={pending}
-            className={fieldClass}
-          />
-        </div>
+        <FileLocalPickRow
+          name="banner"
+          accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+          disabled={pending}
+          title="File ảnh (bắt buộc)"
+          emptyLabel="Chưa chọn ảnh…"
+          buttonLabel="Chọn ảnh"
+        />
 
         <button
           type="submit"

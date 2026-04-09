@@ -5,6 +5,8 @@ import { AppItemForm } from "@/components/app-mobile/app-item-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { findAppMobileItemById } from "@/lib/db/app-mobile-config";
+import { findFileById } from "@/lib/db/file-records";
+import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { canEditContent } from "@/lib/roles";
 
 type Props = { params: Promise<{ id: string }> };
@@ -21,6 +23,8 @@ export default async function ChinhSuaMucMenuPage({ params }: Props) {
 
   const session = await getSession();
   const canEdit = session ? canEditContent(session.role) : false;
+  const iconFile = it.iconFileId ? await findFileById(it.iconFileId) : null;
+  const iconPreview = iconFile ? uploadsPublicHref(iconFile.relativePath) : undefined;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -45,6 +49,7 @@ export default async function ChinhSuaMucMenuPage({ params }: Props) {
           defaultWebUrl={it.webUrl ?? ""}
           defaultLabel={it.label}
           defaultIconKey={it.iconKey}
+          defaultIconPreviewSrc={iconPreview}
           defaultAccentHex={it.accentHex}
         />
       </section>

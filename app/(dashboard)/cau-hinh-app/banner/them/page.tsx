@@ -25,7 +25,7 @@ export default async function ThemBannerAppPage() {
         </Link>
       </div>
       <div className="mt-10">
-        <AppBannerCreateForm canEdit={canEdit} />
+        <AppBannerCreateForm canEdit={canEdit} placement="top" backTab="banner" />
       </div>
     </div>
   );

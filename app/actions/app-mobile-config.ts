@@ -15,6 +15,7 @@ import {
   deleteAppMobileItem,
   deleteAppMobileSection,
   ensureAppMobileThemeRow,
+  type AppHomeBannerPlacement,
   findAppMobileBannerById,
   findAppMobileItemById,
   findAppMobileSectionById,
@@ -40,18 +41,38 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const HEX6_RE = /^#[0-9A-Fa-f]{6}$/;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "app-home");
+const UPLOAD_BANNER_DIR = path.join(process.cwd(), "public", "uploads", "app-home");
+const UPLOAD_ICON_DIR = path.join(process.cwd(), "public", "uploads", "app-home-icons");
 const MAX_BANNER_BYTES = 8 * 1024 * 1024;
+const MAX_ICON_BYTES = 512 * 1024;
 const RELATIVE_PREFIX = "app-home";
+const ICON_RELATIVE_PREFIX = "app-home-icons";
 
 /** Trang cấu hình app — giữ ?tab= để đúng tab sau redirect/back */
 const CAU_HINH_APP_MENU = "/cau-hinh-app?tab=menu";
-const CAU_HINH_APP_BANNER = "/cau-hinh-app?tab=banner";
+
+function cauHinhAppBannerTab(tab: string | null): string {
+  return tab === "carousel" ? "/cau-hinh-app?tab=carousel" : "/cau-hinh-app?tab=banner";
+}
+
+function parsePlacement(raw: string): AppHomeBannerPlacement | null {
+  if (raw === "top" || raw === "after_section_2") return raw;
+  return null;
+}
 
 export type AppMobileFormState = { ok?: boolean; error?: string };
 
+function parseUseCustomIcon(raw: string): boolean {
+  return raw.trim() === "true";
+}
+
 function extFromUpload(file: File, nameLower: string): { ext: string; mime: string } | null {
   const mime = (file.type || "").toLowerCase();
+  if (nameLower.endsWith(".svg")) {
+    // Some browsers may send empty mime for local SVG; accept if extension is correct.
+    if (mime && !["image/svg+xml", "application/octet-stream"].includes(mime)) return null;
+    return { ext: "svg", mime: mime || "image/svg+xml" };
+  }
   if (nameLower.endsWith(".jpg") || nameLower.endsWith(".jpeg")) {
     if (mime && !["image/jpeg", "image/jpg", "application/octet-stream"].includes(mime)) return null;
     return { ext: "jpg", mime: mime || "image/jpeg" };
@@ -89,9 +110,9 @@ async function saveAppHomeBannerFile(
     return { ok: false, error: "File ảnh không hợp lệ." };
   }
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
+  await mkdir(UPLOAD_BANNER_DIR, { recursive: true });
   const fileName = `banner-${randomUUID()}.${parsed.ext}`;
-  const diskPath = path.join(UPLOAD_DIR, fileName);
+  const diskPath = path.join(UPLOAD_BANNER_DIR, fileName);
   const relativePath = `${RELATIVE_PREFIX}/${fileName}`;
 
   await writeFile(diskPath, buf);
@@ -114,6 +135,53 @@ async function saveAppHomeBannerFile(
       /* ignore */
     }
     return { ok: false, error: "Không thể lưu file. Thử lại sau." };
+  }
+}
+
+async function saveAppHomeIconFile(
+  session: SessionPayload,
+  file: File,
+): Promise<{ ok: true; fileId: string } | { ok: false; error: string }> {
+  const nameLower = file.name.toLowerCase();
+  const parsed = extFromUpload(file, nameLower);
+  if (!parsed) {
+    return { ok: false, error: "Icon chỉ nhận SVG." };
+  }
+  if (parsed.ext !== "svg") {
+    return { ok: false, error: "Icon chỉ nhận SVG." };
+  }
+  if (file.size > MAX_ICON_BYTES) {
+    return { ok: false, error: "Icon tối đa 512KB." };
+  }
+  const buf = Buffer.from(await file.arrayBuffer());
+  if (buf.length < 10) {
+    return { ok: false, error: "File icon không hợp lệ." };
+  }
+
+  await mkdir(UPLOAD_ICON_DIR, { recursive: true });
+  const fileName = `icon-${randomUUID()}.${parsed.ext}`;
+  const diskPath = path.join(UPLOAD_ICON_DIR, fileName);
+  const relativePath = `${ICON_RELATIVE_PREFIX}/${fileName}`;
+  await writeFile(diskPath, buf);
+
+  try {
+    const fileId = await insertUploadedFile({
+      category: "app_home_icon",
+      relativePath,
+      originalName: file.name,
+      mimeType: parsed.mime,
+      sizeBytes: buf.length,
+      uploadedById: session.userId,
+    });
+    return { ok: true, fileId };
+  } catch (e) {
+    console.error(e);
+    try {
+      await unlink(diskPath);
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: "Không thể lưu file icon. Thử lại sau." };
   }
 }
 
@@ -170,6 +238,9 @@ export async function createAppMobileBannerAction(
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
   if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
 
+  const placementRaw = String(formData.get("placement") ?? "").trim();
+  const placement = parsePlacement(placementRaw) ?? "top";
+
   const file = formData.get("banner");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Vui lòng chọn ảnh banner." };
@@ -178,10 +249,10 @@ export async function createAppMobileBannerAction(
   const saved = await saveAppHomeBannerFile(session, file);
   if (!saved.ok) return { error: saved.error };
 
-  const sortOrder = await nextAppMobileBannerSortOrder();
+  const sortOrder = await nextAppMobileBannerSortOrder(placement);
 
   try {
-    await insertAppMobileBanner({ fileId: saved.fileId, sortOrder, isActive: true });
+    await insertAppMobileBanner({ fileId: saved.fileId, placement, sortOrder, isActive: true });
   } catch (e) {
     console.error(e);
     await removeBannerFileById(saved.fileId);
@@ -194,27 +265,29 @@ export async function createAppMobileBannerAction(
 
 export async function deleteAppMobileBannerFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
+  const backTab = String(formData.get("backTab") ?? "").trim() || null;
+  const backHref = cauHinhAppBannerTab(backTab);
   if (!session || !canEditContent(session.role)) {
-    redirect(CAU_HINH_APP_BANNER);
+    redirect(backHref);
   }
 
   const id = String(formData.get("bannerId") ?? "").trim();
-  if (!id || !UUID_RE.test(id)) redirect(CAU_HINH_APP_BANNER);
+  if (!id || !UUID_RE.test(id)) redirect(backHref);
 
   const existing = await findAppMobileBannerById(id);
-  if (!existing) redirect(CAU_HINH_APP_BANNER);
+  if (!existing) redirect(backHref);
 
   const fileId = existing.banner.fileId;
   try {
     await deleteAppMobileBannerRow(id);
   } catch (e) {
     console.error(e);
-    redirect(CAU_HINH_APP_BANNER);
+    redirect(backHref);
   }
 
   await removeBannerFileById(fileId);
   revalidatePath("/cau-hinh-app");
-  redirect(CAU_HINH_APP_BANNER);
+  redirect(backHref);
 }
 
 export async function createAppMobileSectionAction(
@@ -346,6 +419,18 @@ export async function createAppMobileItemAction(
   const iconKey = String(formData.get("iconKey") ?? "").trim() || "help_outline";
   if (!isValidAppMobileIconKey(iconKey)) return { error: "Icon không hợp lệ." };
 
+  const useCustomIcon = parseUseCustomIcon(String(formData.get("useCustomIcon") ?? "false"));
+  const iconFile = formData.get("iconFile");
+  let iconFileId: string | null = null;
+  if (useCustomIcon) {
+    if (!(iconFile instanceof File) || iconFile.size === 0) {
+      return { error: "Vui lòng chọn file icon tuỳ chỉnh." };
+    }
+    const saved = await saveAppHomeIconFile(session, iconFile);
+    if (!saved.ok) return { error: saved.error };
+    iconFileId = saved.fileId;
+  }
+
   const accentHex = String(formData.get("accentHex") ?? "").trim();
   if (!HEX6_RE.test(accentHex)) {
     return { error: "Màu nhấn phải là #RRGGBB." };
@@ -361,12 +446,16 @@ export async function createAppMobileItemAction(
       webUrl,
       label,
       iconKey,
+      iconFileId,
       accentHex,
       sortOrder,
       isActive: true,
     });
   } catch (e) {
     console.error(e);
+    if (iconFileId) {
+      await removeBannerFileById(iconFileId);
+    }
     return { error: "Không thể thêm mục." };
   }
 
@@ -422,6 +511,26 @@ export async function updateAppMobileItemAction(
   const iconKey = String(formData.get("iconKey") ?? "").trim() || "help_outline";
   if (!isValidAppMobileIconKey(iconKey)) return { error: "Icon không hợp lệ." };
 
+  const useCustomIcon = parseUseCustomIcon(String(formData.get("useCustomIcon") ?? "false"));
+  const iconFile = formData.get("iconFile");
+  const shouldUploadNew = iconFile instanceof File && iconFile.size > 0;
+
+  let nextIconFileId: string | null = existing.iconFileId ?? null;
+  let newIconFileId: string | null = null;
+  if (useCustomIcon && shouldUploadNew) {
+    const saved = await saveAppHomeIconFile(session, iconFile as File);
+    if (!saved.ok) return { error: saved.error };
+    newIconFileId = saved.fileId;
+    nextIconFileId = newIconFileId;
+  } else if (!useCustomIcon) {
+    nextIconFileId = null;
+  } else {
+    // useCustomIcon=true but no new file: keep existing if any
+    if (!nextIconFileId) {
+      return { error: "Bạn đã chọn icon tuỳ chỉnh nhưng chưa có icon nào. Vui lòng upload file icon." };
+    }
+  }
+
   const accentHex = String(formData.get("accentHex") ?? "").trim();
   if (!HEX6_RE.test(accentHex)) {
     return { error: "Màu nhấn phải là #RRGGBB." };
@@ -435,10 +544,18 @@ export async function updateAppMobileItemAction(
       label,
       iconKey,
       accentHex,
+      iconFileId: nextIconFileId,
     });
   } catch (e) {
     console.error(e);
+    if (newIconFileId) await removeBannerFileById(newIconFileId);
     return { error: "Không thể cập nhật." };
+  }
+
+  // Cleanup old icon file if replaced or removed
+  const oldIconFileId = existing.iconFileId ?? null;
+  if (oldIconFileId && oldIconFileId !== nextIconFileId) {
+    await removeBannerFileById(oldIconFileId);
   }
 
   revalidatePath("/cau-hinh-app");
@@ -496,12 +613,16 @@ export async function moveAppMobileItemServer(
   revalidatePath("/cau-hinh-app");
 }
 
-export async function moveAppMobileBannerServer(id: string, direction: "up" | "down"): Promise<void> {
+export async function moveAppMobileBannerServer(
+  id: string,
+  placement: AppHomeBannerPlacement,
+  direction: "up" | "down",
+): Promise<void> {
   const session = await getSession();
   if (!session || !canEditContent(session.role)) return;
   if (!UUID_RE.test(id)) return;
   try {
-    await moveAppMobileBannerRelative(id, direction);
+    await moveAppMobileBannerRelative(id, placement, direction);
   } catch (e) {
     console.error(e);
   }

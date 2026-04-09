@@ -25,7 +25,8 @@ export default async function CauHinhAppPage() {
   const theme = await ensureAppMobileThemeRow();
   const sections = await listAppMobileSectionsForCms();
   const items = await listAppMobileItemsForCms();
-  const banners = await listAppMobileBannersForCms();
+  const bannersTop = await listAppMobileBannersForCms("top");
+  const bannersMid = await listAppMobileBannersForCms("after_section_2");
 
   const itemsBySection = new Map<string, typeof items>();
   for (const s of sections) {
@@ -42,7 +43,15 @@ export default async function CauHinhAppPage() {
     });
   }
 
-  const listBanners = banners.map(({ banner, file }) => ({
+  const listBannersTop = bannersTop.map(({ banner, file }) => ({
+    id: banner.id,
+    sortOrder: banner.sortOrder,
+    isActive: banner.isActive,
+    previewSrc: uploadsPublicHref(file.relativePath),
+    fileName: file.originalName,
+  }));
+
+  const listBannersMid = bannersMid.map(({ banner, file }) => ({
     id: banner.id,
     sortOrder: banner.sortOrder,
     isActive: banner.isActive,
@@ -82,7 +91,8 @@ export default async function CauHinhAppPage() {
 
       <AppMobileConfigTabs
         canEdit={canEdit}
-        banners={listBanners}
+        bannersTop={listBannersTop}
+        bannersMid={listBannersMid}
         sections={listSections}
         themePanel={
           <AppThemeForm

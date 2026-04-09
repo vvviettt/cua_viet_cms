@@ -134,6 +134,34 @@
       "when": 1775459000000,
       "tag": "0018_app_mobile_config",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1775540000000,
+      "tag": "0019_citizen_accounts_active",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1775541000000,
+      "tag": "0020_app_home_banner_placement",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1775542000000,
+      "tag": "0021_file_category_app_home_icon",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1775543000000,
+      "tag": "0022_app_mobile_home_items_icon_file",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { canEditContent } from "@/lib/roles";
 
 type Props = { params: Promise<{ id: string }> };
+type SearchProps = { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string | string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ChinhSuaBannerAppPage({ params }: Props) {
+export default async function ChinhSuaBannerAppPage({ params, searchParams }: SearchProps) {
   const { id } = await params;
   const row = await findAppMobileBannerById(id);
   if (!row) notFound();
@@ -26,12 +27,15 @@ export default async function ChinhSuaBannerAppPage({ params }: Props) {
   const session = await getSession();
   const canEdit = session ? canEditContent(session.role) : false;
   const src = uploadsPublicHref(row.file.relativePath);
+  const sp = await searchParams;
+  const tabRaw = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
+  const backTab = tabRaw === "carousel" ? "carousel" : "banner";
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <Link
-          href="/cau-hinh-app?tab=banner"
+          href={`/cau-hinh-app?tab=${backTab}`}
           className="font-medium text-(--portal-primary) underline-offset-2 hover:underline"
         >
           ← Cấu hình app
@@ -53,6 +57,7 @@ export default async function ChinhSuaBannerAppPage({ params }: Props) {
       {canEdit ? (
         <form action={deleteAppMobileBannerFormAction} className="mt-8">
           <input type="hidden" name="bannerId" value={row.banner.id} />
+          <input type="hidden" name="backTab" value={backTab} />
           <button
             type="submit"
             className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100"

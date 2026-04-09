@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/news-articles";
 import type { NewsArticleListRow } from "@/lib/db/news-articles";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
+import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 import {
   NewsCategoryPicker,
   type NewsCategoryOption,
@@ -136,13 +137,14 @@ export function EditNewsForm({ row, canEdit, categories }: Props) {
             <div className="relative mb-3 h-40 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 sm:h-48">
               <Image src={bannerPreview} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 28rem" unoptimized />
             </div>
-            <input
+            <FileLocalPickRow
               id="news-edit-banner"
               name="banner"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
               disabled={pending}
-              className={`${fieldClass} py-2 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm`}
+              title="Chọn ảnh banner mới (tùy chọn)"
+              emptyLabel="Không chọn để giữ banner hiện tại…"
+              buttonLabel="Chọn ảnh"
             />
           </div>
 

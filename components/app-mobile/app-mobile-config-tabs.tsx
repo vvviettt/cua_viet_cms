@@ -8,17 +8,18 @@ import { AppMobileBannerPanel } from "./app-mobile-banner-panel";
 import type { AppMobileListBanner, AppMobileListSection } from "./app-mobile-config-types";
 import { AppMobileMenuPanel } from "./app-mobile-menu-panel";
 
-type TabId = "theme" | "banner" | "menu";
+type TabId = "theme" | "banner" | "carousel" | "menu";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "theme", label: "Chủ đề" },
   { id: "banner", label: "Banner" },
+  { id: "carousel", label: "Carousel" },
   { id: "menu", label: "Danh mục" },
 ];
 
 function tabFromSearchParams(sp: URLSearchParams): TabId {
   const t = sp.get("tab");
-  if (t === "banner" || t === "menu") return t;
+  if (t === "banner" || t === "carousel" || t === "menu") return t;
   return "theme";
 }
 
@@ -33,11 +34,12 @@ function buildPathWithTab(pathname: string, sp: URLSearchParams, tab: TabId): st
 type Props = {
   canEdit: boolean;
   themePanel: ReactNode;
-  banners: AppMobileListBanner[];
+  bannersTop: AppMobileListBanner[];
+  bannersMid: AppMobileListBanner[];
   sections: AppMobileListSection[];
 };
 
-function AppMobileConfigTabsInner({ canEdit, themePanel, banners, sections }: Props) {
+function AppMobileConfigTabsInner({ canEdit, themePanel, bannersTop, bannersMid, sections }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,6 +62,17 @@ function AppMobileConfigTabsInner({ canEdit, themePanel, banners, sections }: Pr
     router.replace(buildPathWithTab(pathname, searchParams, "banner"), { scroll: false });
     setTimeout(scrollToAddBanner, 50);
   }, [pathname, router, scrollToAddBanner, searchParams]);
+
+  const scrollToAddCarousel = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("them-carousel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  const goCarouselAndScroll = useCallback(() => {
+    router.replace(buildPathWithTab(pathname, searchParams, "carousel"), { scroll: false });
+    setTimeout(scrollToAddCarousel, 50);
+  }, [pathname, router, scrollToAddCarousel, searchParams]);
 
   return (
     <div className="mt-8">
@@ -109,10 +122,41 @@ function AppMobileConfigTabsInner({ canEdit, themePanel, banners, sections }: Pr
           hidden={tab !== "banner"}
           className={tab === "banner" ? "flex flex-col gap-10" : "hidden"}
         >
-          <AppMobileBannerPanel canEdit={canEdit} banners={banners} onAddBannerClick={goBannerAndScroll} />
+          <AppMobileBannerPanel
+            canEdit={canEdit}
+            banners={bannersTop}
+            title="Banner trang chủ"
+            description="Sắp xếp bằng mũi tên. Tick để bật/tắt trên app. Nếu chưa có ảnh, app dùng ảnh mặc định."
+            placement="top"
+            backTab="banner"
+            onAddBannerClick={goBannerAndScroll}
+          />
           {canEdit ? (
             <div id="them-banner" className="scroll-mt-24">
-              <AppBannerCreateForm canEdit={canEdit} />
+              <AppBannerCreateForm canEdit={canEdit} placement="top" backTab="banner" />
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          role="tabpanel"
+          id="app-config-panel-carousel"
+          aria-labelledby="app-config-tab-carousel"
+          hidden={tab !== "carousel"}
+          className={tab === "carousel" ? "flex flex-col gap-10" : "hidden"}
+        >
+          <AppMobileBannerPanel
+            canEdit={canEdit}
+            banners={bannersMid}
+            title="Carousel giữa trang chủ"
+            description="Danh sách ảnh carousel nằm giữa danh mục thứ 2 trên trang chủ app."
+            placement="after_section_2"
+            backTab="carousel"
+            onAddBannerClick={goCarouselAndScroll}
+          />
+          {canEdit ? (
+            <div id="them-carousel" className="scroll-mt-24">
+              <AppBannerCreateForm canEdit={canEdit} placement="after_section_2" backTab="carousel" />
             </div>
           ) : null}
         </div>

@@ -15,10 +15,22 @@ import { AppMobileOrderArrows } from "./app-mobile-order-arrows";
 type Props = {
   canEdit: boolean;
   banners: AppMobileListBanner[];
+  title: string;
+  description: string;
+  placement: "top" | "after_section_2";
+  backTab: "banner" | "carousel";
   onAddBannerClick?: () => void;
 };
 
-export function AppMobileBannerPanel({ canEdit, banners, onAddBannerClick }: Props) {
+export function AppMobileBannerPanel({
+  canEdit,
+  banners,
+  onAddBannerClick,
+  title,
+  description,
+  placement,
+  backTab,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -33,10 +45,8 @@ export function AppMobileBannerPanel({ canEdit, banners, onAddBannerClick }: Pro
     <section className="rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Banner trang chủ</h2>
-          <p className="mt-2 text-sm text-zinc-600">
-            Sắp xếp bằng mũi tên. Tick để bật/tắt trên app. Nếu chưa có ảnh, app dùng ảnh mặc định.
-          </p>
+          <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
+          <p className="mt-2 text-sm text-zinc-600">{description}</p>
         </div>
         {canEdit ? (
           <button
@@ -66,8 +76,8 @@ export function AppMobileBannerPanel({ canEdit, banners, onAddBannerClick }: Pro
                     disabled={pending}
                     canUp={idx > 0}
                     canDown={idx < banners.length - 1}
-                    onUp={() => run(() => moveAppMobileBannerServer(b.id, "up"))}
-                    onDown={() => run(() => moveAppMobileBannerServer(b.id, "down"))}
+                    onUp={() => run(() => moveAppMobileBannerServer(b.id, placement, "up"))}
+                    onDown={() => run(() => moveAppMobileBannerServer(b.id, placement, "down"))}
                   />
                 ) : (
                   <span className="hidden w-8 sm:block" />
@@ -91,7 +101,7 @@ export function AppMobileBannerPanel({ canEdit, banners, onAddBannerClick }: Pro
                 <div className="flex flex-col gap-2 sm:items-end">
                   {canEdit ? (
                     <Link
-                      href={`/cau-hinh-app/banner/${b.id}/chinh-sua`}
+                      href={`/cau-hinh-app/banner/${b.id}/chinh-sua?tab=${backTab}`}
                       className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50"
                     >
                       Xem / xóa
@@ -100,6 +110,7 @@ export function AppMobileBannerPanel({ canEdit, banners, onAddBannerClick }: Pro
                   {canEdit ? (
                     <form action={deleteAppMobileBannerFormAction}>
                       <input type="hidden" name="bannerId" value={b.id} />
+                      <input type="hidden" name="backTab" value={backTab} />
                       <button
                         type="submit"
                         className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 transition hover:bg-red-100"
