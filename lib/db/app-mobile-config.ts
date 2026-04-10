@@ -548,7 +548,7 @@ export async function buildPublicAppMobileConfig(requestOrigin: string): Promise
       : themeDefaults,
     banners,
     midCarousel: {
-      insertAfterSectionIndex: 2,
+      insertAfterSectionIndex: 1,
       banners: midBanners,
     },
     sections,
