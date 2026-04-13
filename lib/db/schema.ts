@@ -159,6 +159,8 @@ export const appMobileTheme = pgTable("app_mobile_theme", {
 export const appMobileHomeSections = pgTable("app_mobile_home_sections", {
   id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull(),
+  /** Icon nhóm (tuỳ chọn) — lưu qua bảng files. */
+  iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
@@ -193,6 +195,10 @@ export const appMobileBanners = pgTable("app_mobile_banners", {
     .notNull()
     .references(() => files.id, { onDelete: "restrict" }),
   placement: appHomeBannerPlacementEnum("placement").notNull().default("top"),
+  /** URL khi click banner (mở webview) */
+  redirectUrl: text("redirect_url"),
+  /** Route trong app khi click banner */
+  routePath: text("route_path"),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),

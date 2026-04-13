@@ -9,8 +9,6 @@ import {
 } from "@/app/actions/app-mobile-config";
 import { APP_MOBILE_NATIVE_ROUTE_IDS } from "@/lib/app-mobile-native-routes";
 import { FileLocalPickRow } from "@/components/ui/file-source-picker";
-import { AppMobileHexField } from "./app-mobile-hex-field";
-import { AppMobileIconPicker } from "./app-mobile-icon-picker";
 
 const fieldClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25";
@@ -33,7 +31,6 @@ type EditProps = {
   defaultLabel: string;
   defaultIconKey: string;
   defaultIconPreviewSrc?: string;
-  defaultAccentHex: string;
 };
 
 type Props = CreateProps | EditProps;
@@ -48,6 +45,11 @@ export function AppItemForm(props: Props) {
   const [kind, setKind] = useState<"native" | "webview">(initialKind);
   const initialUseCustomIcon = isEdit ? Boolean(props.defaultIconPreviewSrc) : false;
   const [useCustomIcon, setUseCustomIcon] = useState<boolean>(initialUseCustomIcon);
+  const [pickedIconFile, setPickedIconFile] = useState<File | null>(null);
+
+  const hasExistingIcon = isEdit ? Boolean(props.defaultIconPreviewSrc) : false;
+  const hasIcon = Boolean(pickedIconFile) || hasExistingIcon;
+  const canSubmit = pending ? false : hasIcon;
 
   useEffect(() => {
     if (!state?.ok) return;
@@ -148,24 +150,14 @@ export function AppItemForm(props: Props) {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-zinc-700">Biểu tượng</p>
+            <p className="text-sm font-medium text-zinc-700">Biểu tượng <span className="text-red-600">*</span></p>
             
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-zinc-800">
-            <input
-              type="checkbox"
-              checked={useCustomIcon}
-              disabled={pending}
-              onChange={(e) => setUseCustomIcon(e.target.checked)}
-              className="size-4 rounded border-zinc-300"
-            />
-            Dùng icon tuỳ chỉnh
-          </label>
+          
         </div>
 
         <input type="hidden" name="useCustomIcon" value={useCustomIcon ? "true" : "false"} />
 
-        {useCustomIcon ? (
           <div className="mt-3">
             <input type="hidden" name="iconKey" value="help_outline" />
             <FileLocalPickRow
@@ -173,6 +165,10 @@ export function AppItemForm(props: Props) {
               name="iconFile"
               accept="image/svg+xml,.svg"
               disabled={pending}
+              onFileChange={(f) => {
+                setPickedIconFile(f);
+                if (f) setUseCustomIcon(true);
+              }}
               title="Upload icon SVG"
               emptyLabel="Chưa chọn icon SVG…"
               buttonLabel="Chọn icon"
@@ -181,28 +177,20 @@ export function AppItemForm(props: Props) {
               existingFileLinkLabel="Xem SVG"
             />
             <p className="mt-1 text-xs text-zinc-500">Chỉ nhận SVG. Tối đa 512KB.</p>
+            {!hasIcon ? (
+              <p className="mt-2 text-xs font-medium text-red-700">
+                Vui lòng chọn icon SVG trước khi lưu.
+              </p>
+            ) : null}
           </div>
-        ) : (
-          <div className="mt-3">
-            <AppMobileIconPicker
-              name="iconKey"
-              defaultKey={isEdit ? props.defaultIconKey : "help_outline"}
-              disabled={pending}
-            />
-          </div>
-        )}
+        
       </div>
 
-      <AppMobileHexField
-        name="accentHex"
-        label="Màu nhấn (ô icon)"
-        defaultHex={isEdit ? props.defaultAccentHex : "#1565C0"}
-        disabled={pending}
-      />
+     
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={!canSubmit}
         className="w-fit rounded-lg bg-(--portal-primary) px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-(--portal-primary-hover) disabled:opacity-60"
       >
         {pending ? "Đang lưu…" : "Lưu"}

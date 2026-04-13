@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { AppSectionForm } from "@/components/app-mobile/app-section-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
-import { findAppMobileSectionById } from "@/lib/db/app-mobile-config";
+import { findAppMobileSectionByIdForCms } from "@/lib/db/app-mobile-config";
 import { canEditContent } from "@/lib/roles";
+import { uploadsPublicHref } from "@/lib/uploads/public-url";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -16,8 +17,11 @@ export const metadata: Metadata = {
 
 export default async function ChinhSuaNhomMenuPage({ params }: Props) {
   const { id } = await params;
-  const sec = await findAppMobileSectionById(id);
-  if (!sec) notFound();
+  const row = await findAppMobileSectionByIdForCms(id);
+  if (!row) notFound();
+  const sec = row.section;
+  const defaultIconUrl = row.iconFile?.relativePath ? uploadsPublicHref(row.iconFile.relativePath) : null;
+  const defaultIconDisplayName = row.iconFile?.originalName ?? null;
 
   const session = await getSession();
   const canEdit = session ? canEditContent(session.role) : false;
@@ -41,6 +45,8 @@ export default async function ChinhSuaNhomMenuPage({ params }: Props) {
           canEdit={canEdit}
           sectionId={sec.id}
           defaultTitle={sec.title}
+          defaultIconUrl={defaultIconUrl}
+          defaultIconDisplayName={defaultIconDisplayName}
         />
       </section>
     </div>

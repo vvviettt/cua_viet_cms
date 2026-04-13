@@ -7,7 +7,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonSurfaces } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -84,7 +84,7 @@ export function FeedbackListPagination({
               {currentPage <= 1 ? (
                 <span
                   className={cn(
-                    buttonVariants({ variant: "ghost", size: "default" }),
+                    buttonSurfaces({ variant: "ghost", size: "default" }),
                     "pointer-events-none gap-1 pl-1.5 opacity-40",
                   )}
                   aria-disabled
@@ -121,7 +121,7 @@ export function FeedbackListPagination({
               {currentPage >= totalPages ? (
                 <span
                   className={cn(
-                    buttonVariants({ variant: "ghost", size: "default" }),
+                    buttonSurfaces({ variant: "ghost", size: "default" }),
                     "pointer-events-none gap-1 pr-1.5 opacity-40",
                   )}
                   aria-disabled

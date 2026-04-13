@@ -51,6 +51,19 @@ export function AppBannerCreateForm({ canEdit, placement, backTab }: Props) {
           buttonLabel="Chọn ảnh"
         />
 
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-700">Link khi bấm banner (tuỳ chọn)</label>
+          <input
+            name="redirectUrl"
+            type="url"
+            inputMode="url"
+            placeholder="https://…"
+            disabled={pending}
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25"
+          />
+          <p className="mt-1 text-xs text-zinc-500">Nếu có, app sẽ mở link trong WebView.</p>
+        </div>
+
         <button
           type="submit"
           disabled={pending}

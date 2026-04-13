@@ -1,8 +1,6 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import type { SessionPayload } from "@/lib/session-cookie";
@@ -10,6 +8,7 @@ import { insertUploadedFile } from "@/lib/db/file-records";
 import { getWorkScheduleTypeById } from "@/lib/db/work-schedule-types";
 import { canEditContent } from "@/lib/roles";
 import { isSchedulePeriodKind, type SchedulePeriodKind } from "@/lib/work-schedules/period";
+import { removeSupabaseObject, uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 import {
   findBySchedulePeriod,
   findWorkScheduleById,
@@ -17,7 +16,6 @@ import {
   upsertWorkSchedule,
 } from "@/lib/work-schedules/store";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "lich-lam-viec");
 const MAX_BYTES = 10 * 1024 * 1024;
 const RELATIVE_PREFIX = "lich-lam-viec";
 
@@ -88,18 +86,22 @@ async function persistPdfAndSchedule(params: {
     return { error: "File PDF tối đa 10MB." };
   }
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
-
   const existing = await findBySchedulePeriod(scheduleType.id, periodKind, periodValue);
   const fileSlug = safeFileSlug(periodKind, periodValue);
   const fileName = `${fileSlug}-${randomUUID()}.pdf`;
   const relativePath = `${RELATIVE_PREFIX}/${fileName}`;
 
-  await writeFile(path.join(UPLOAD_DIR, fileName), buf);
+  await uploadBufferToSupabase({
+    relativePath,
+    buf,
+    contentType: mimeType || "application/pdf",
+    cacheControl: "3600",
+    upsert: false,
+  });
 
   if (existing?.fileName && existing.fileName !== fileName) {
     try {
-      await unlink(path.join(UPLOAD_DIR, existing.fileName));
+      await removeSupabaseObject(`${RELATIVE_PREFIX}/${existing.fileName}`);
     } catch {
       /* ignore */
     }

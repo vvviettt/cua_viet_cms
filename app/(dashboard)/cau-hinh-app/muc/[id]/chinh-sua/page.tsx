@@ -50,7 +50,6 @@ export default async function ChinhSuaMucMenuPage({ params }: Props) {
           defaultLabel={it.label}
           defaultIconKey={it.iconKey}
           defaultIconPreviewSrc={iconPreview}
-          defaultAccentHex={it.accentHex}
         />
       </section>
     </div>

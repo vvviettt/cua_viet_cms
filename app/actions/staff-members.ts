@@ -1,12 +1,11 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import type { SessionPayload } from "@/lib/session-cookie";
 import { insertUploadedFile } from "@/lib/db/file-records";
+import { removeSupabaseObject, uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 import {
   findStaffMemberById,
   insertStaffMember,
@@ -14,7 +13,6 @@ import {
 } from "@/lib/db/staff-members";
 import { canEditContent } from "@/lib/roles";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "can-bo");
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const RELATIVE_PREFIX = "can-bo";
 
@@ -137,12 +135,16 @@ async function saveAvatarIfAny(
     return { ok: false, error: "File ảnh không hợp lệ." };
   }
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
   const fileName = `avatar-${randomUUID()}.${parsed.ext}`;
-  const diskPath = path.join(UPLOAD_DIR, fileName);
   const relativePath = `${RELATIVE_PREFIX}/${fileName}`;
 
-  await writeFile(diskPath, buf);
+  await uploadBufferToSupabase({
+    relativePath,
+    buf,
+    contentType: parsed.mime,
+    cacheControl: "3600",
+    upsert: false,
+  });
 
   try {
     await insertUploadedFile({
@@ -153,12 +155,7 @@ async function saveAvatarIfAny(
       sizeBytes: buf.length,
       uploadedById: session.userId,
     });
-  } catch (e) {
-    try {
-      await unlink(diskPath);
-    } catch {
-      /* ignore */
-    }
+  } catch {
     return { ok: false, error: "Không thể lưu bản ghi file. Thử lại sau." };
   }
 
@@ -208,7 +205,7 @@ export async function createStaffMember(
     console.error(e);
     if (avatarRelativePath) {
       try {
-        await unlink(path.join(process.cwd(), "public", "uploads", avatarRelativePath));
+        await removeSupabaseObject(avatarRelativePath);
       } catch {
         /* ignore */
       }
@@ -249,17 +246,17 @@ export async function updateStaffMember(
 
   const file = formData.get("avatar");
   let avatarRelativePath = existing.avatarRelativePath;
-  let newAvatarDiskPath: string | null = null;
+  let newAvatarRelativePath: string | null = null;
 
   if (file instanceof File && file.size > 0) {
     const saved = await saveAvatarIfAny(session, file);
     if (!saved.ok) {
       return { error: saved.error };
     }
-    newAvatarDiskPath = saved.relativePath;
+    newAvatarRelativePath = saved.relativePath;
     if (existing.avatarRelativePath) {
       try {
-        await unlink(path.join(process.cwd(), "public", "uploads", existing.avatarRelativePath));
+        await removeSupabaseObject(existing.avatarRelativePath);
       } catch {
         /* ignore */
       }
@@ -274,9 +271,9 @@ export async function updateStaffMember(
     });
   } catch (e) {
     console.error(e);
-    if (newAvatarDiskPath) {
+    if (newAvatarRelativePath) {
       try {
-        await unlink(path.join(process.cwd(), "public", "uploads", newAvatarDiskPath));
+        await removeSupabaseObject(newAvatarRelativePath);
       } catch {
         /* ignore */
       }

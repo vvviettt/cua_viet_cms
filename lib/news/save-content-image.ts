@@ -1,11 +1,8 @@
 import { randomUUID } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { insertUploadedFile } from "@/lib/db/file-records";
 import type { SessionPayload } from "@/lib/session-cookie";
-import { uploadsPublicHref } from "@/lib/uploads/public-url";
+import { uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "tin-tuc", "noi-dung");
 /** Dùng chung với job dọn ảnh nội dung tin. */
 export const NEWS_CONTENT_IMAGE_RELATIVE_PREFIX = "tin-tuc/noi-dung";
 export const MAX_CONTENT_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -73,12 +70,15 @@ export async function persistContentImageBuffer(params: {
   if (params.buf.length < 10) {
     throw new Error("invalid_image");
   }
-  await mkdir(UPLOAD_DIR, { recursive: true });
   const fileName = `nd-${randomUUID()}.${params.parsed.ext}`;
-  const diskPath = path.join(UPLOAD_DIR, fileName);
   const relativePath = `${NEWS_CONTENT_IMAGE_RELATIVE_PREFIX}/${fileName}`;
-
-  await writeFile(diskPath, params.buf);
+  const { publicUrl } = await uploadBufferToSupabase({
+    relativePath,
+    buf: params.buf,
+    contentType: params.parsed.mime,
+    cacheControl: "3600",
+    upsert: false,
+  });
 
   try {
     await insertUploadedFile({
@@ -90,13 +90,8 @@ export async function persistContentImageBuffer(params: {
       uploadedById: params.session.userId,
     });
   } catch (e) {
-    try {
-      await unlink(diskPath);
-    } catch {
-      /* ignore */
-    }
     throw e;
   }
 
-  return { url: uploadsPublicHref(relativePath) };
+  return { url: publicUrl };
 }
