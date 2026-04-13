@@ -10,7 +10,20 @@ import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { canEditContent } from "@/lib/roles";
 
 type Props = { params: Promise<{ id: string }> };
-type SearchProps = { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string | string[] }> };
+const linkErrMessages: Record<string, string> = {
+  session: "Phiên đăng nhập không hợp lệ.",
+  forbidden: "Bạn không có quyền cập nhật.",
+  bad_id: "Mã banner không hợp lệ.",
+  not_found: "Không tìm thấy banner.",
+  bad_protocol: "Link banner phải bắt đầu bằng http hoặc https.",
+  bad_link: "Link banner không hợp lệ.",
+  save: "Không thể cập nhật link banner.",
+};
+
+type SearchProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[]; linkErr?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -28,6 +41,9 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
   const canEdit = session ? canEditContent(session.role) : false;
   const src = uploadsPublicHref(row.file.relativePath);
   const sp = await searchParams;
+  const linkErrRaw = sp.linkErr;
+  const linkErrKey = Array.isArray(linkErrRaw) ? linkErrRaw[0] : linkErrRaw;
+  const linkErrMessage = linkErrKey ? linkErrMessages[linkErrKey] ?? null : null;
   const backTab = "banner";
 
   return (
@@ -56,6 +72,11 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
       {canEdit ? (
         <form action={updateAppMobileBannerLinkAction} className="mt-6 flex max-w-md flex-col gap-3">
           <input type="hidden" name="bannerId" value={row.banner.id} />
+          {linkErrMessage ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+              {linkErrMessage}
+            </p>
+          ) : null}
           <label className="text-sm font-medium text-zinc-700">Link khi bấm banner (tuỳ chọn)</label>
           <input
             name="redirectUrl"

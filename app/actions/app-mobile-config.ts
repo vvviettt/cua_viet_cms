@@ -278,19 +278,20 @@ export async function createAppMobileBannerAction(
   return { ok: true };
 }
 
-export async function updateAppMobileBannerLinkAction(
-  _prev: AppMobileFormState,
-  formData: FormData,
-): Promise<AppMobileFormState> {
-  const session = await getSession();
-  if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+const bannerLinkEditPath = (bannerId: string) => `/cau-hinh-app/banner/${bannerId}/chinh-sua`;
 
+export async function updateAppMobileBannerLinkAction(formData: FormData): Promise<void> {
   const id = String(formData.get("bannerId") ?? "").trim();
-  if (!id || !UUID_RE.test(id)) return { error: "Mã banner không hợp lệ." };
+  const back = id && UUID_RE.test(id) ? bannerLinkEditPath(id) : "/cau-hinh-app";
+
+  const session = await getSession();
+  if (!session) redirect(`${back}?linkErr=session`);
+  if (!canEditContent(session.role)) redirect(`${back}?linkErr=forbidden`);
+
+  if (!id || !UUID_RE.test(id)) redirect(`${back}?linkErr=bad_id`);
 
   const existing = await findAppMobileBannerById(id);
-  if (!existing) return { error: "Không tìm thấy banner." };
+  if (!existing) redirect(`${back}?linkErr=not_found`);
 
   const redirectUrlRaw = String(formData.get("redirectUrl") ?? "").trim();
   let redirectUrl: string | null = null;
@@ -298,11 +299,11 @@ export async function updateAppMobileBannerLinkAction(
     try {
       const u = new URL(redirectUrlRaw);
       if (u.protocol !== "http:" && u.protocol !== "https:") {
-        return { error: "Link banner phải bắt đầu bằng http hoặc https." };
+        redirect(`${bannerLinkEditPath(id)}?linkErr=bad_protocol`);
       }
       redirectUrl = redirectUrlRaw;
     } catch {
-      return { error: "Link banner không hợp lệ." };
+      redirect(`${bannerLinkEditPath(id)}?linkErr=bad_link`);
     }
   }
 
@@ -310,12 +311,12 @@ export async function updateAppMobileBannerLinkAction(
     await updateAppMobileBannerLink(id, { redirectUrl, routePath: null });
   } catch (e) {
     console.error(e);
-    return { error: "Không thể cập nhật link banner." };
+    redirect(`${bannerLinkEditPath(id)}?linkErr=save`);
   }
 
   revalidatePath("/cau-hinh-app");
-  revalidatePath(`/cau-hinh-app/banner/${id}/chinh-sua`);
-  return { ok: true };
+  revalidatePath(bannerLinkEditPath(id));
+  redirect(bannerLinkEditPath(id));
 }
 
 export async function deleteAppMobileBannerFormAction(formData: FormData): Promise<void> {
