@@ -1,8 +1,6 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
@@ -19,8 +17,8 @@ import {
   updateNewsArticle,
 } from "@/lib/db/news-articles";
 import { canEditContent } from "@/lib/roles";
+import { removeSupabaseObject, uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "tin-tuc");
 const MAX_BANNER_BYTES = 8 * 1024 * 1024;
 const RELATIVE_PREFIX = "tin-tuc";
 const MAX_TITLE = 300;
@@ -128,12 +126,20 @@ async function saveNewsBanner(
     return { ok: false, error: "File ảnh không hợp lệ." };
   }
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
   const fileName = `banner-${randomUUID()}.${parsed.ext}`;
-  const diskPath = path.join(UPLOAD_DIR, fileName);
   const relativePath = `${RELATIVE_PREFIX}/${fileName}`;
-
-  await writeFile(diskPath, buf);
+  try {
+    await uploadBufferToSupabase({
+      relativePath,
+      buf,
+      contentType: parsed.mime,
+      cacheControl: "3600",
+      upsert: false,
+    });
+  } catch (e) {
+    console.error(e);
+    return { ok: false, error: "Không thể upload ảnh banner. Thử lại sau." };
+  }
 
   try {
     const fileId = await insertUploadedFile({
@@ -148,7 +154,7 @@ async function saveNewsBanner(
   } catch (e) {
     console.error(e);
     try {
-      await unlink(diskPath);
+      await removeSupabaseObject(relativePath);
     } catch {
       /* ignore */
     }
@@ -159,9 +165,8 @@ async function saveNewsBanner(
 async function removeBannerFileById(fileId: string): Promise<void> {
   const row = await findFileById(fileId);
   if (!row) return;
-  const diskPath = path.join(process.cwd(), "public", "uploads", row.relativePath);
   try {
-    await unlink(diskPath);
+    await removeSupabaseObject(row.relativePath);
   } catch {
     /* ignore */
   }

@@ -8,7 +8,6 @@ import {
   type NewsArticleFormState,
 } from "@/app/actions/news-articles";
 import type { NewsArticleListRow } from "@/lib/db/news-articles";
-import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 import {
   NewsCategoryPicker,
@@ -25,13 +24,13 @@ type Props = {
   row: NewsArticleListRow;
   canEdit: boolean;
   categories: NewsCategoryOption[];
+  bannerPreviewSrc: string;
 };
 
-export function EditNewsForm({ row, canEdit, categories }: Props) {
+export function EditNewsForm({ row, canEdit, categories, bannerPreviewSrc }: Props) {
   const [state, formAction, pending] = useActionState(updateNewsArticleEntry, initial);
   const editorRef = useRef<NewsEditorHandle | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
-  const bannerPreview = uploadsPublicHref(row.bannerRelativePath);
 
   if (!canEdit) {
     return (
@@ -135,7 +134,14 @@ export function EditNewsForm({ row, canEdit, categories }: Props) {
             </label>
             <p className="mb-2 text-xs text-zinc-500">Để trống nếu giữ banner hiện tại.</p>
             <div className="relative mb-3 h-40 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 sm:h-48">
-              <Image src={bannerPreview} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 28rem" unoptimized />
+              <Image
+                src={bannerPreviewSrc}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, 28rem"
+                unoptimized
+              />
             </div>
             <FileLocalPickRow
               id="news-edit-banner"

@@ -28,8 +28,7 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
   const canEdit = session ? canEditContent(session.role) : false;
   const src = uploadsPublicHref(row.file.relativePath);
   const sp = await searchParams;
-  const tabRaw = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
-  const backTab = tabRaw === "carousel" ? "carousel" : "banner";
+  const backTab = "banner";
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

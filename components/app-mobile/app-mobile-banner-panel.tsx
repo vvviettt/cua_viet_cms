@@ -18,7 +18,7 @@ type Props = {
   title: string;
   description: string;
   placement: "top" | "after_section_2";
-  backTab: "banner" | "carousel";
+  backTab: "banner";
   onAddBannerClick?: () => void;
 };
 

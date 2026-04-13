@@ -10,7 +10,7 @@ const initial: AppMobileFormState = {};
 type Props = {
   canEdit: boolean;
   placement: "top" | "after_section_2";
-  backTab: "banner" | "carousel";
+  backTab: "banner";
 };
 
 export function AppBannerCreateForm({ canEdit, placement, backTab }: Props) {

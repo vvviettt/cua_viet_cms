@@ -7,6 +7,7 @@ import { SITE } from "@/lib/constants";
 import { listNewsArticleCategories } from "@/lib/db/news-article-categories";
 import { findNewsArticleById } from "@/lib/db/news-articles";
 import { canEditContent } from "@/lib/roles";
+import { uploadsPublicHref } from "@/lib/uploads/public-url";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -30,6 +31,7 @@ export default async function ChinhSuaTinTucPage({ params }: Props) {
   const canEdit = session ? canEditContent(session.role) : false;
   const categoryRows = await listNewsArticleCategories();
   const categories = categoryRows.map((c) => ({ id: c.id, title: c.title }));
+  const bannerPreviewSrc = uploadsPublicHref(row.bannerRelativePath);
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -45,7 +47,7 @@ export default async function ChinhSuaTinTucPage({ params }: Props) {
       </header>
 
       <div className="mt-8">
-        <EditNewsForm row={row} canEdit={canEdit} categories={categories} />
+        <EditNewsForm row={row} canEdit={canEdit} categories={categories} bannerPreviewSrc={bannerPreviewSrc} />
       </div>
     </div>
   );

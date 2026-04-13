@@ -1,4 +1,3 @@
-import { supabaseAdmin, supabaseBucketName } from "@/lib/supabase/admin";
 import { normalizeUploadPath } from "@/lib/uploads/supabase-storage";
 
 /**
@@ -7,9 +6,20 @@ import { normalizeUploadPath } from "@/lib/uploads/supabase-storage";
  * Hiện tại dùng Supabase Storage public URL (bucket mặc định: `uploads`).
  */
 export function uploadsPublicHref(relativePath: string): string {
-  const bucket = supabaseBucketName();
   const objectPath = normalizeUploadPath(relativePath);
-  const supabase = supabaseAdmin();
-  const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
-  return data.publicUrl;
+  // Must work in both server + client components.
+  const supabaseUrl =
+    (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
+  const bucket = (process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ||
+    process.env.SUPABASE_STORAGE_BUCKET ||
+    "uploads"
+  )
+    .trim()
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!supabaseUrl) {
+    // Avoid crashing client components; return a relative URL-like placeholder.
+    return "";
+  }
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${objectPath}`;
 }

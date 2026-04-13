@@ -51,7 +51,7 @@ const DEFAULT_ITEM_ACCENT_HEX = "#1565C0";
 const CAU_HINH_APP_MENU = "/cau-hinh-app?tab=menu";
 
 function cauHinhAppBannerTab(tab: string | null): string {
-  return tab === "carousel" ? "/cau-hinh-app?tab=carousel" : "/cau-hinh-app?tab=banner";
+  return "/cau-hinh-app?tab=banner";
 }
 
 function parsePlacement(raw: string): AppHomeBannerPlacement | null {
