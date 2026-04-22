@@ -33,6 +33,11 @@ export const appHomeBannerPlacementEnum = pgEnum("app_home_banner_placement", [
   "after_section_2",
 ]);
 
+export const appHomeBannerCtaKeyEnum = pgEnum("app_home_banner_cta_key", [
+  "apply_online",
+  "lookup_result",
+]);
+
 /** Phản ánh vs kiến nghị */
 export const citizenFeedbackKindEnum = pgEnum("citizen_feedback_kind", ["phan_anh", "kien_nghi"]);
 
@@ -182,6 +187,8 @@ export const appMobileHomeItems = pgTable("app_mobile_home_items", {
   iconKey: text("icon_key").notNull().default("help_outline"),
   iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
   accentHex: text("accent_hex").notNull().default("#1565C0"),
+  /** Đánh dấu làm danh sách “Tiện ích yêu thích” mặc định (fallback khi máy chưa custom). */
+  isDefaultFavorite: boolean("is_default_favorite").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
@@ -199,6 +206,89 @@ export const appMobileBanners = pgTable("app_mobile_banners", {
   redirectUrl: text("redirect_url"),
   /** Route trong app khi click banner */
   routePath: text("route_path"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Tab thanh điều hướng dưới app (Trang chủ, Trợ lý ảo, …) — admin bật/tắt và sắp xếp. */
+export const appMobileShellTabs = pgTable("app_mobile_shell_tabs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Khớp app Flutter: home | assistant | notifications | profile */
+  tabKey: text("tab_key").notNull().unique(),
+  label: text("label").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Nội dung banner đầu trang (2 dòng text + 2 CTA) — một bản ghi. */
+export const appMobileHomeBanner = pgTable("app_mobile_home_banner", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull().default("CỬA VIỆT SỐ"),
+  subtitle: text("subtitle").notNull().default("CHUYỂN ĐỔI SỐ XÃ CỬA VIỆT"),
+  applyLabel: text("apply_label").notNull().default("Nộp hồ sơ trực tuyến"),
+  lookupLabel: text("lookup_label").notNull().default("Tra cứu kết quả"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Nhóm danh mục riêng cho 2 nút CTA trên banner đầu trang. */
+export const appMobileHomeBannerSections = pgTable("app_mobile_home_banner_sections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ctaKey: appHomeBannerCtaKeyEnum("cta_key").notNull(),
+  title: text("title").notNull(),
+  iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
+  kind: appHomeItemKindEnum("kind").notNull().default("native"),
+  /** Khi kind=native: route trong app. */
+  routeId: text("route_id"),
+  /** Khi kind=webview: URL đầy đủ. */
+  webUrl: text("web_url"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Từng mục dịch vụ/liên kết nằm trong danh mục CTA trên banner. */
+export const appMobileHomeBannerItems = pgTable("app_mobile_home_banner_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sectionId: uuid("section_id")
+    .notNull()
+    .references(() => appMobileHomeBannerSections.id, { onDelete: "cascade" }),
+  kind: appHomeItemKindEnum("kind").notNull(),
+  routeId: text("route_id"),
+  webUrl: text("web_url"),
+  label: text("label").notNull(),
+  iconKey: text("icon_key").notNull().default("help_outline"),
+  iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
+  accentHex: text("accent_hex").notNull().default("#1565C0"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Cài đặt ứng dụng (một bản ghi) — app dùng để quyết định hiển thị & nội dung. */
+export const appMobileSettings = pgTable("app_mobile_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Cho phép người dân đăng ký tài khoản mới. */
+  allowCitizenRegister: boolean("allow_citizen_register").notNull().default(true),
+  /** Hotline hỗ trợ (chỉ số, lưu dạng string). */
+  supportHotline: text("support_hotline"),
+  /** Chuỗi JSON OutputData của Editor.js */
+  usageGuideJson: text("usage_guide_json").notNull().default('{"blocks":[]}'),
+  /** Chuỗi JSON OutputData của Editor.js */
+  termsJson: text("terms_json").notNull().default('{"blocks":[]}'),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** FAQ cho app — câu hỏi/ trả lời và thứ tự hiển thị. */
+export const appMobileFaqs = pgTable("app_mobile_faqs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { AppSectionForm } from "@/components/app-mobile/app-section-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
@@ -18,7 +19,7 @@ export default async function ThemNhomMenuPage() {
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <div className="text-sm">
         <Link
-          href="/cau-hinh-app?tab=menu"
+          href={appMobileCauHinhPaths.trangChu}
           className="font-medium text-(--portal-primary) underline-offset-2 hover:underline"
         >
           ← Cấu hình app

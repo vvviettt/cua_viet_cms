@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createAppMobileBannerAction, type AppMobileFormState } from "@/app/actions/app-mobile-config";
+import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 
 const initial: AppMobileFormState = {};
@@ -10,32 +11,43 @@ const initial: AppMobileFormState = {};
 type Props = {
   canEdit: boolean;
   placement: "top" | "after_section_2";
-  backTab: "banner";
+  /** Đường dẫn quay lại sau khi tải banner thành công. */
+  returnTo?: string;
+  /** Render gọn để nhúng trong modal/panel. */
+  embedded?: boolean;
 };
 
-export function AppBannerCreateForm({ canEdit, placement, backTab }: Props) {
+export function AppBannerCreateForm({
+  canEdit,
+  placement,
+  returnTo = appMobileCauHinhPaths.trangChu,
+  embedded = false,
+}: Props) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(createAppMobileBannerAction, initial);
 
   useEffect(() => {
     if (!state?.ok) return;
-    router.push(`/cau-hinh-app?tab=${backTab}`);
-  }, [state?.ok, router, backTab]);
+    router.push(returnTo);
+  }, [state?.ok, router, returnTo]);
 
   if (!canEdit) {
     return null;
   }
 
-  return (
-    <section className="rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="text-lg font-semibold text-zinc-900">Thêm ảnh banner</h2>
-      <p className="mt-2 text-sm text-zinc-600">
-        Ảnh được thêm xuống cuối danh sách. Sắp xếp và bật/tắt hiển thị trên trang danh sách cấu hình.
-      </p>
+  const Wrapper = embedded ? "div" : "section";
 
-      <form action={formAction} className="mt-6 flex flex-col gap-4">
+  return (
+    <Wrapper className={embedded ? "" : "rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6"}>
+      <div className={embedded ? "mb-4 border-b border-zinc-100 pb-4" : ""}>
+        <h2 className="text-lg font-semibold text-zinc-900">Thêm ảnh banner</h2>
+        <p className="mt-2 text-sm text-zinc-600">
+          Ảnh được thêm xuống cuối danh sách. Sắp xếp và bật/tắt hiển thị trên trang danh sách cấu hình.
+        </p>
+      </div>
+
+      <form action={formAction} className={`${embedded ? "" : "mt-6 "}flex flex-col gap-4`}>
         <input type="hidden" name="placement" value={placement} />
-        <input type="hidden" name="backTab" value={backTab} />
         {state?.error ? (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
             {state.error}
@@ -72,6 +84,6 @@ export function AppBannerCreateForm({ canEdit, placement, backTab }: Props) {
           {pending ? "Đang tải lên…" : "Tải lên"}
         </button>
       </form>
-    </section>
+    </Wrapper>
   );
 }

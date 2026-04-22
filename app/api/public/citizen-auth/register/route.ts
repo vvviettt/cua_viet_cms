@@ -1,6 +1,7 @@
 import { hashSync } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { mintCitizenToken } from "@/lib/citizen-auth/token";
+import { ensureAppMobileSettingsRow } from "@/lib/db/app-mobile-settings";
 import {
   findCitizenAccountByPhoneForAuth,
   insertCitizenRegisteredAccount,
@@ -21,6 +22,12 @@ export async function POST(request: Request) {
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Thân yêu cầu không hợp lệ." }, { status: 400 });
     }
+
+    const settings = await ensureAppMobileSettingsRow();
+    if (!settings.allowCitizenRegister) {
+      return NextResponse.json({ error: "Tạm dừng đăng ký." }, { status: 403 });
+    }
+
     const b = body as Record<string, unknown>;
 
     const password = String(b.password ?? "");

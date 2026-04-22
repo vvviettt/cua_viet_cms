@@ -13,28 +13,49 @@ import {
   deleteAppMobileBannerRow,
   deleteAppMobileItem,
   deleteAppMobileSection,
+  deleteAppMobileHomeBannerItem,
+  deleteAppMobileHomeBannerSection,
   ensureAppMobileThemeRow,
+  ensureAppMobileHomeBannerRow,
   type AppHomeBannerPlacement,
+  type AppHomeBannerCtaKey,
   findAppMobileBannerById,
   findAppMobileItemById,
   findAppMobileSectionById,
   insertAppMobileBanner,
   insertAppMobileItem,
   insertAppMobileSection,
+  insertAppMobileHomeBannerItem,
+  insertAppMobileHomeBannerSection,
+  moveAppMobileHomeBannerItemRelative,
+  moveAppMobileHomeBannerSectionRelative,
+  nextAppMobileHomeBannerItemSortOrderInSection,
+  nextAppMobileHomeBannerSectionSortOrder,
+  findAppMobileHomeBannerItemById,
+  findAppMobileHomeBannerSectionById,
   moveAppMobileBannerRelative,
   moveAppMobileItemRelative,
   moveAppMobileSectionRelative,
+  moveAppMobileShellTabRelative,
   nextAppMobileBannerSortOrder,
   nextAppMobileItemSortOrderInSection,
   nextAppMobileSectionSortOrder,
   setAppMobileBannerActive,
   setAppMobileItemActive,
+  setAppMobileItemDefaultFavorite,
   setAppMobileSectionActive,
+  setAppMobileShellTabActive,
+  setAppMobileHomeBannerItemActive,
+  setAppMobileHomeBannerSectionActive,
   updateAppMobileBannerLink,
+  updateAppMobileHomeBannerItemContent,
+  updateAppMobileHomeBannerSectionTitle,
   updateAppMobileItemContent,
   updateAppMobileSectionTitle,
+  updateAppMobileHomeBanner,
   updateAppMobileTheme,
 } from "@/lib/db/app-mobile-config";
+import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { canEditContent } from "@/lib/roles";
 
 const UUID_RE =
@@ -47,11 +68,16 @@ const RELATIVE_PREFIX = "app-home";
 const ICON_RELATIVE_PREFIX = "app-home-icons";
 const DEFAULT_ITEM_ACCENT_HEX = "#1565C0";
 
-/** Trang cấu hình app — giữ ?tab= để đúng tab sau redirect/back */
-const CAU_HINH_APP_MENU = "/cau-hinh-app?tab=menu";
+const CAU_HINH_APP_MENU = appMobileCauHinhPaths.trangChu;
 
-function cauHinhAppBannerTab(tab: string | null): string {
-  return "/cau-hinh-app?tab=banner";
+function resolveBannerListHref(formData: FormData): string {
+  const raw = String(formData.get("returnPath") ?? "").trim();
+  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return appMobileCauHinhPaths.trangChu;
+}
+
+function revalidateCauHinhAppTree() {
+  revalidatePath(appMobileCauHinhPaths.hub, "layout");
 }
 
 function parsePlacement(raw: string): AppHomeBannerPlacement | null {
@@ -220,7 +246,47 @@ export async function updateAppMobileThemeAction(
     return { error: "Không thể lưu. Thử lại sau." };
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+function parseCtaKey(raw: string): AppHomeBannerCtaKey | null {
+  if (raw === "apply_online" || raw === "lookup_result") return raw;
+  return null;
+}
+
+export async function updateAppMobileHomeBannerAction(
+  _prev: AppMobileFormState,
+  formData: FormData,
+): Promise<AppMobileFormState> {
+  const session = await getSession();
+  if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
+  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+
+  await ensureAppMobileHomeBannerRow();
+
+  const title = String(formData.get("title") ?? "").trim();
+  const subtitle = String(formData.get("subtitle") ?? "").trim();
+  const applyLabel = String(formData.get("applyLabel") ?? "").trim();
+  const lookupLabel = String(formData.get("lookupLabel") ?? "").trim();
+
+  if (!title) return { error: "Vui lòng nhập tiêu đề dòng 1." };
+  if (title.length > 80) return { error: "Tiêu đề dòng 1 tối đa 80 ký tự." };
+  if (!subtitle) return { error: "Vui lòng nhập tiêu đề dòng 2." };
+  if (subtitle.length > 120) return { error: "Tiêu đề dòng 2 tối đa 120 ký tự." };
+  if (!applyLabel) return { error: "Vui lòng nhập nhãn nút 1." };
+  if (applyLabel.length > 60) return { error: "Nhãn nút 1 tối đa 60 ký tự." };
+  if (!lookupLabel) return { error: "Vui lòng nhập nhãn nút 2." };
+  if (lookupLabel.length > 60) return { error: "Nhãn nút 2 tối đa 60 ký tự." };
+
+  try {
+    await updateAppMobileHomeBanner({ title, subtitle, applyLabel, lookupLabel });
+  } catch (e) {
+    console.error(e);
+    return { error: "Không thể lưu. Thử lại sau." };
+  }
+
+  revalidateCauHinhAppTree();
   return { ok: true };
 }
 
@@ -274,7 +340,7 @@ export async function createAppMobileBannerAction(
     return { error: "Không thể lưu banner." };
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   return { ok: true };
 }
 
@@ -282,7 +348,7 @@ const bannerLinkEditPath = (bannerId: string) => `/cau-hinh-app/banner/${bannerI
 
 export async function updateAppMobileBannerLinkAction(formData: FormData): Promise<void> {
   const id = String(formData.get("bannerId") ?? "").trim();
-  const back = id && UUID_RE.test(id) ? bannerLinkEditPath(id) : "/cau-hinh-app";
+  const back = id && UUID_RE.test(id) ? bannerLinkEditPath(id) : appMobileCauHinhPaths.trangChu;
 
   const session = await getSession();
   if (!session) redirect(`${back}?linkErr=session`);
@@ -314,15 +380,14 @@ export async function updateAppMobileBannerLinkAction(formData: FormData): Promi
     redirect(`${bannerLinkEditPath(id)}?linkErr=save`);
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   revalidatePath(bannerLinkEditPath(id));
   redirect(bannerLinkEditPath(id));
 }
 
 export async function deleteAppMobileBannerFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  const backTab = String(formData.get("backTab") ?? "").trim() || null;
-  const backHref = cauHinhAppBannerTab(backTab);
+  const backHref = resolveBannerListHref(formData);
   if (!session || !canEditContent(session.role)) {
     redirect(backHref);
   }
@@ -342,7 +407,7 @@ export async function deleteAppMobileBannerFormAction(formData: FormData): Promi
   }
 
   await removeBannerFileById(fileId);
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   redirect(backHref);
 }
 
@@ -376,8 +441,415 @@ export async function createAppMobileSectionAction(
     return { error: "Không thể thêm nhóm." };
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   return { ok: true };
+}
+
+export async function createAppMobileHomeBannerSectionAction(
+  _prev: AppMobileFormState,
+  formData: FormData,
+): Promise<AppMobileFormState> {
+  const session = await getSession();
+  if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
+  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+
+  const ctaKey = parseCtaKey(String(formData.get("ctaKey") ?? "").trim());
+  if (!ctaKey) return { error: "CTA không hợp lệ." };
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Vui lòng nhập tên nhóm." };
+  if (title.length > 200) return { error: "Tên nhóm tối đa 200 ký tự." };
+
+  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  if (!kind) return { error: "Loại mục không hợp lệ." };
+  const routeIdRaw = String(formData.get("routeId") ?? "").trim();
+  const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  let routeId: string | null = null;
+  let webUrl: string | null = null;
+  if (kind === "native") {
+    if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
+      return { error: "Vui lòng chọn route native hợp lệ." };
+    }
+    routeId = routeIdRaw;
+  } else {
+    if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
+    if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
+    try {
+      const u = new URL(webUrlRaw);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        return { error: "URL phải bắt đầu bằng http hoặc https." };
+      }
+    } catch {
+      return { error: "URL không hợp lệ." };
+    }
+    webUrl = webUrlRaw;
+  }
+
+  const iconFile = formData.get("iconFile");
+  if (!(iconFile instanceof File) || iconFile.size === 0) {
+    return { error: "Vui lòng upload icon (SVG) cho nhóm." };
+  }
+  const savedIcon = await saveAppHomeIconFile(session, iconFile);
+  if (!savedIcon.ok) return { error: savedIcon.error };
+  const iconFileId = savedIcon.fileId;
+
+  const sortOrder = await nextAppMobileHomeBannerSectionSortOrder(ctaKey);
+
+  try {
+    await insertAppMobileHomeBannerSection({
+      ctaKey,
+      title,
+      iconFileId,
+      kind,
+      routeId,
+      webUrl,
+      sortOrder,
+      isActive: true,
+    });
+  } catch (e) {
+    console.error(e);
+    await removeBannerFileById(iconFileId);
+    return { error: "Không thể thêm nhóm." };
+  }
+
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+export async function updateAppMobileHomeBannerSectionAction(
+  _prev: AppMobileFormState,
+  formData: FormData,
+): Promise<AppMobileFormState> {
+  const session = await getSession();
+  if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
+  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+
+  const id = String(formData.get("sectionId") ?? "").trim();
+  if (!id || !UUID_RE.test(id)) return { error: "Mã nhóm không hợp lệ." };
+  const existing = await findAppMobileHomeBannerSectionById(id);
+  if (!existing) return { error: "Không tìm thấy nhóm." };
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Vui lòng nhập tên nhóm." };
+  if (title.length > 200) return { error: "Tên nhóm tối đa 200 ký tự." };
+
+  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  if (!kind) return { error: "Loại mục không hợp lệ." };
+  const routeIdRaw = String(formData.get("routeId") ?? "").trim();
+  const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  let routeId: string | null = null;
+  let webUrl: string | null = null;
+  if (kind === "native") {
+    if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
+      return { error: "Vui lòng chọn route native hợp lệ." };
+    }
+    routeId = routeIdRaw;
+  } else {
+    if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
+    if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
+    try {
+      const u = new URL(webUrlRaw);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        return { error: "URL phải bắt đầu bằng http hoặc https." };
+      }
+    } catch {
+      return { error: "URL không hợp lệ." };
+    }
+    webUrl = webUrlRaw;
+  }
+
+  const iconFile = formData.get("iconFile");
+  const shouldUploadNew = iconFile instanceof File && iconFile.size > 0;
+  let nextIconFileId: string | null = existing.iconFileId ?? null;
+  let newIconFileId: string | null = null;
+  if (shouldUploadNew) {
+    const saved = await saveAppHomeIconFile(session, iconFile as File);
+    if (!saved.ok) return { error: saved.error };
+    newIconFileId = saved.fileId;
+    nextIconFileId = newIconFileId;
+  } else if (!nextIconFileId) {
+    return { error: "Nhóm chưa có icon. Vui lòng upload icon (SVG) cho nhóm." };
+  }
+
+  try {
+    await updateAppMobileHomeBannerSectionTitle(id, {
+      title,
+      iconFileId: nextIconFileId,
+      kind,
+      routeId,
+      webUrl,
+    });
+  } catch (e) {
+    console.error(e);
+    if (newIconFileId) await removeBannerFileById(newIconFileId);
+    return { error: "Không thể cập nhật." };
+  }
+
+  const oldIconFileId = existing.iconFileId ?? null;
+  if (oldIconFileId && oldIconFileId !== nextIconFileId) {
+    await removeBannerFileById(oldIconFileId);
+  }
+
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+export async function deleteAppMobileHomeBannerSectionFormAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) redirect(CAU_HINH_APP_MENU);
+
+  const id = String(formData.get("sectionId") ?? "").trim();
+  if (!id || !UUID_RE.test(id)) redirect(CAU_HINH_APP_MENU);
+  const existing = await findAppMobileHomeBannerSectionById(id);
+  if (!existing) redirect(CAU_HINH_APP_MENU);
+
+  try {
+    await deleteAppMobileHomeBannerSection(id);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+  redirect(CAU_HINH_APP_MENU);
+}
+
+export async function moveAppMobileHomeBannerSectionServer(
+  id: string,
+  ctaKey: AppHomeBannerCtaKey,
+  direction: "up" | "down",
+): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await moveAppMobileHomeBannerSectionRelative(id, ctaKey, direction);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileHomeBannerSectionActiveServer(id: string, isActive: boolean): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileHomeBannerSectionActive(id, isActive);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function createAppMobileHomeBannerItemAction(
+  _prev: AppMobileFormState,
+  formData: FormData,
+): Promise<AppMobileFormState> {
+  const session = await getSession();
+  if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
+  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+
+  const sectionId = String(formData.get("sectionId") ?? "").trim();
+  if (!sectionId || !UUID_RE.test(sectionId)) return { error: "Nhóm CTA không hợp lệ." };
+  const section = await findAppMobileHomeBannerSectionById(sectionId);
+  if (!section) return { error: "Không tìm thấy nhóm CTA." };
+
+  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  if (!kind) return { error: "Loại mục không hợp lệ." };
+
+  const routeIdRaw = String(formData.get("routeId") ?? "").trim();
+  const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  let routeId: string | null = null;
+  let webUrl: string | null = null;
+  if (kind === "native") {
+    if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
+      return { error: "Vui lòng chọn route native hợp lệ." };
+    }
+    routeId = routeIdRaw;
+  } else {
+    if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
+    if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
+    try {
+      const u = new URL(webUrlRaw);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        return { error: "URL phải bắt đầu bằng http hoặc https." };
+      }
+    } catch {
+      return { error: "URL không hợp lệ." };
+    }
+    webUrl = webUrlRaw;
+  }
+
+  const label = String(formData.get("label") ?? "").trim();
+  if (!label) return { error: "Vui lòng nhập nhãn hiển thị." };
+  if (label.length > 120) return { error: "Nhãn tối đa 120 ký tự." };
+
+  const iconKey = String(formData.get("iconKey") ?? "").trim() || "help_outline";
+  if (!isValidAppMobileIconKey(iconKey)) return { error: "Icon không hợp lệ." };
+
+  const useCustomIcon = parseUseCustomIcon(String(formData.get("useCustomIcon") ?? "false"));
+  const iconFile = formData.get("iconFile");
+  let iconFileId: string | null = null;
+  if (useCustomIcon) {
+    if (!(iconFile instanceof File) || iconFile.size == 0) return { error: "Vui lòng chọn file icon." };
+    const saved = await saveAppHomeIconFile(session, iconFile);
+    if (!saved.ok) return { error: saved.error };
+    iconFileId = saved.fileId;
+  }
+
+  const accentHex = DEFAULT_ITEM_ACCENT_HEX;
+  const sortOrder = await nextAppMobileHomeBannerItemSortOrderInSection(sectionId);
+
+  try {
+    await insertAppMobileHomeBannerItem({
+      sectionId,
+      kind,
+      routeId,
+      webUrl,
+      label,
+      iconKey,
+      iconFileId,
+      accentHex,
+      sortOrder,
+      isActive: true,
+    });
+  } catch (e) {
+    console.error(e);
+    if (iconFileId) await removeBannerFileById(iconFileId);
+    return { error: "Không thể thêm mục." };
+  }
+
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+export async function updateAppMobileHomeBannerItemAction(
+  _prev: AppMobileFormState,
+  formData: FormData,
+): Promise<AppMobileFormState> {
+  const session = await getSession();
+  if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
+  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+
+  const id = String(formData.get("itemId") ?? "").trim();
+  if (!id || !UUID_RE.test(id)) return { error: "Mã mục không hợp lệ." };
+  const existing = await findAppMobileHomeBannerItemById(id);
+  if (!existing) return { error: "Không tìm thấy mục." };
+
+  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  if (!kind) return { error: "Loại mục không hợp lệ." };
+
+  const routeIdRaw = String(formData.get("routeId") ?? "").trim();
+  const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  let routeId: string | null = null;
+  let webUrl: string | null = null;
+  if (kind === "native") {
+    if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) return { error: "Vui lòng chọn route native hợp lệ." };
+    routeId = routeIdRaw;
+  } else {
+    if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
+    if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
+    try {
+      const u = new URL(webUrlRaw);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return { error: "URL phải bắt đầu bằng http hoặc https." };
+    } catch {
+      return { error: "URL không hợp lệ." };
+    }
+    webUrl = webUrlRaw;
+  }
+
+  const label = String(formData.get("label") ?? "").trim();
+  if (!label) return { error: "Vui lòng nhập nhãn hiển thị." };
+  if (label.length > 120) return { error: "Nhãn tối đa 120 ký tự." };
+
+  const iconKey = String(formData.get("iconKey") ?? "").trim() || "help_outline";
+  if (!isValidAppMobileIconKey(iconKey)) return { error: "Icon không hợp lệ." };
+
+  const useCustomIcon = parseUseCustomIcon(String(formData.get("useCustomIcon") ?? "false"));
+  const iconFile = formData.get("iconFile");
+  const shouldUploadNew = iconFile instanceof File && iconFile.size > 0;
+  let nextIconFileId: string | null = existing.iconFileId ?? null;
+  let newIconFileId: string | null = null;
+  if (useCustomIcon && shouldUploadNew) {
+    const saved = await saveAppHomeIconFile(session, iconFile as File);
+    if (!saved.ok) return { error: saved.error };
+    newIconFileId = saved.fileId;
+    nextIconFileId = newIconFileId;
+  } else if (!useCustomIcon) {
+    nextIconFileId = null;
+  } else {
+    if (!nextIconFileId) return { error: "Bạn đã chọn icon tuỳ chỉnh nhưng chưa có icon nào. Vui lòng upload file icon." };
+  }
+
+  const accentHex = DEFAULT_ITEM_ACCENT_HEX;
+
+  try {
+    await updateAppMobileHomeBannerItemContent(id, {
+      kind,
+      routeId,
+      webUrl,
+      label,
+      iconKey,
+      accentHex,
+      iconFileId: nextIconFileId,
+    });
+  } catch (e) {
+    console.error(e);
+    if (newIconFileId) await removeBannerFileById(newIconFileId);
+    return { error: "Không thể cập nhật." };
+  }
+
+  const oldIconFileId = existing.iconFileId ?? null;
+  if (oldIconFileId && oldIconFileId !== nextIconFileId) {
+    await removeBannerFileById(oldIconFileId);
+  }
+
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+export async function deleteAppMobileHomeBannerItemFormAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) redirect(CAU_HINH_APP_MENU);
+  const id = String(formData.get("itemId") ?? "").trim();
+  if (!id || !UUID_RE.test(id)) redirect(CAU_HINH_APP_MENU);
+  const existing = await findAppMobileHomeBannerItemById(id);
+  if (!existing) redirect(CAU_HINH_APP_MENU);
+
+  try {
+    await deleteAppMobileHomeBannerItem(id);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+  redirect(CAU_HINH_APP_MENU);
+}
+
+export async function moveAppMobileHomeBannerItemServer(
+  itemId: string,
+  sectionId: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return;
+  if (!UUID_RE.test(itemId) || !UUID_RE.test(sectionId)) return;
+  try {
+    await moveAppMobileHomeBannerItemRelative(itemId, sectionId, direction);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileHomeBannerItemActiveServer(id: string, isActive: boolean): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileHomeBannerItemActive(id, isActive);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
 }
 
 export async function updateAppMobileSectionAction(
@@ -425,7 +897,7 @@ export async function updateAppMobileSectionAction(
     await removeBannerFileById(oldIconFileId);
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   revalidatePath(`/cau-hinh-app/nhom-menu/${id}/chinh-sua`);
   return { ok: true };
 }
@@ -448,7 +920,7 @@ export async function deleteAppMobileSectionFormAction(formData: FormData): Prom
     console.error(e);
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   redirect(CAU_HINH_APP_MENU);
 }
 
@@ -540,7 +1012,7 @@ export async function createAppMobileItemAction(
     return { error: "Không thể thêm mục." };
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   return { ok: true };
 }
 
@@ -635,7 +1107,7 @@ export async function updateAppMobileItemAction(
     await removeBannerFileById(oldIconFileId);
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   revalidatePath(`/cau-hinh-app/muc/${id}/chinh-sua`);
   return { ok: true };
 }
@@ -658,7 +1130,7 @@ export async function deleteAppMobileItemFormAction(formData: FormData): Promise
     console.error(e);
   }
 
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
   redirect(CAU_HINH_APP_MENU);
 }
 
@@ -671,7 +1143,7 @@ export async function moveAppMobileSectionServer(id: string, direction: "up" | "
   } catch (e) {
     console.error(e);
   }
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
 }
 
 export async function moveAppMobileItemServer(
@@ -687,7 +1159,7 @@ export async function moveAppMobileItemServer(
   } catch (e) {
     console.error(e);
   }
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
 }
 
 export async function moveAppMobileBannerServer(
@@ -703,7 +1175,7 @@ export async function moveAppMobileBannerServer(
   } catch (e) {
     console.error(e);
   }
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
 }
 
 export async function setAppMobileSectionActiveServer(id: string, isActive: boolean): Promise<void> {
@@ -715,7 +1187,7 @@ export async function setAppMobileSectionActiveServer(id: string, isActive: bool
   } catch (e) {
     console.error(e);
   }
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
 }
 
 export async function setAppMobileItemActiveServer(id: string, isActive: boolean): Promise<void> {
@@ -727,7 +1199,19 @@ export async function setAppMobileItemActiveServer(id: string, isActive: boolean
   } catch (e) {
     console.error(e);
   }
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileItemDefaultFavoriteServer(id: string, isDefaultFavorite: boolean): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileItemDefaultFavorite(id, isDefaultFavorite);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
 }
 
 export async function setAppMobileBannerActiveServer(id: string, isActive: boolean): Promise<void> {
@@ -739,5 +1223,31 @@ export async function setAppMobileBannerActiveServer(id: string, isActive: boole
   } catch (e) {
     console.error(e);
   }
-  revalidatePath("/cau-hinh-app");
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileShellTabActiveServer(id: string, isActive: boolean): Promise<{ ok?: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return { error: "Không có quyền." };
+  if (!UUID_RE.test(id)) return { error: "Mã tab không hợp lệ." };
+  try {
+    await setAppMobileShellTabActive(id, isActive);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Không cập nhật được.";
+    return { error: msg };
+  }
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+export async function moveAppMobileShellTabServer(id: string, direction: "up" | "down"): Promise<void> {
+  const session = await getSession();
+  if (!session || !canEditContent(session.role)) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await moveAppMobileShellTabRelative(id, direction);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
 }

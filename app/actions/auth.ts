@@ -31,6 +31,7 @@ export async function login(
   const email = normalizeEmail(emailRaw);
   const user = await getUserByEmailForAuth(email);
 
+  console.log(user);
   if (!user || !user.isActive || !compareSync(password, user.passwordHash)) {
     return { error: "Email hoặc mật khẩu không đúng." };
   }

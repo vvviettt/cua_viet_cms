@@ -169,6 +169,48 @@
       "when": 1776086271118,
       "tag": "0023_calm_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1776087200000,
+      "tag": "0024_app_mobile_shell_tabs",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1776088200000,
+      "tag": "0025_app_mobile_home_banner_cta",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1776089200000,
+      "tag": "0026_app_mobile_home_banner_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1776090200000,
+      "tag": "0027_app_mobile_home_banner_section_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1776847798967,
+      "tag": "0028_solid_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1776850000000,
+      "tag": "0029_app_mobile_home_items_default_favorite",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createOrUpdateWorkSchedule,
@@ -249,24 +249,8 @@ export function CreateScheduleForm({
   const [monthValue, setMonthValue] = useState(init.monthValue);
   const [yearValue, setYearValue] = useState(init.yearValue);
   const [title, setTitle] = useState(init.title);
-  const titleManuallyEdited = useRef(init.titleManual);
   const [state, formAction, pending] = useActionState(createOrUpdateWorkSchedule, initial);
-  const [filePickKey, setFilePickKey] = useState(0);
-
-  useEffect(() => {
-    if (scheduleTypes.length === 0) return;
-    if (!scheduleTypes.some((t) => t.id === scheduleTypeId)) {
-      setScheduleTypeId(scheduleTypes[0]!.id);
-    }
-  }, [scheduleTypes, scheduleTypeId]);
-
-  useEffect(() => {
-    if (titleManuallyEdited.current) return;
-    const label = scheduleTypes.find((t) => t.id === scheduleTypeId)?.label ?? "";
-    const pv =
-      periodKind === "week" ? weekValue : periodKind === "month" ? monthValue : yearValue;
-    setTitle(buildAutoScheduleTitle(label, periodKind, pv));
-  }, [scheduleTypeId, periodKind, weekValue, monthValue, yearValue, scheduleTypes]);
+  const [titleManual, setTitleManual] = useState(init.titleManual);
 
   useEffect(() => {
     if (!state?.ok) return;
@@ -274,18 +258,23 @@ export function CreateScheduleForm({
       router.push(redirectOnSuccessHref);
       return;
     }
-    titleManuallyEdited.current = false;
-    setScheduleTypeId(scheduleTypes[0]?.id ?? "");
-    setPeriodKind("week");
-    setWeekValue(getCurrentIsoWeekValue());
-    setMonthValue(getCurrentMonthValue());
-    setYearValue(String(new Date().getFullYear()));
-    setFilePickKey((k) => k + 1);
+    // Reset toàn bộ form bằng cách reload để tránh setState trong effect.
+    const t = window.setTimeout(() => window.location.reload(), 400);
+    return () => window.clearTimeout(t);
   }, [state?.ok, redirectOnSuccessHref, router, scheduleTypes]);
 
   /** PDF mở từ server khi vào trang sửa — giữ tên/link trên hàng file cho đến khi user chọn PDF khác. */
   const showExistingPdfInPicker =
     existingUploadedFile != null && prefillFromList != null;
+
+  const effectiveScheduleTypeId = scheduleTypes.some((t) => t.id === scheduleTypeId)
+    ? scheduleTypeId
+    : scheduleTypes[0]?.id ?? "";
+  const scheduleTypeLabel = scheduleTypes.find((t) => t.id === effectiveScheduleTypeId)?.label ?? "";
+  const periodValue =
+    periodKind === "week" ? weekValue : periodKind === "month" ? monthValue : yearValue;
+  const autoTitle = buildAutoScheduleTitle(scheduleTypeLabel, periodKind, periodValue);
+  const effectiveTitle = titleManual ? title : autoTitle;
 
   if (!canUpload) {
     return (
@@ -330,9 +319,9 @@ export function CreateScheduleForm({
               id="scheduleTypeId"
               name="scheduleTypeId"
               required
-              value={scheduleTypeId}
+              value={effectiveScheduleTypeId}
               onChange={(e) => {
-                titleManuallyEdited.current = false;
+                setTitleManual(false);
                 setScheduleTypeId(e.target.value);
               }}
               className="w-full max-w-xl rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/25"
@@ -359,7 +348,7 @@ export function CreateScheduleForm({
               required
               value={periodKind}
               onChange={(e) => {
-                titleManuallyEdited.current = false;
+                setTitleManual(false);
                 setPeriodKind(e.target.value as SchedulePeriodKind);
               }}
               className="w-full max-w-xl rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/25"
@@ -380,7 +369,7 @@ export function CreateScheduleForm({
                 disabled={pending}
                 selectClassName={fieldSelectClass}
                 onChange={(next) => {
-                  titleManuallyEdited.current = false;
+                  setTitleManual(false);
                   setWeekValue(next);
                 }}
               />
@@ -391,7 +380,7 @@ export function CreateScheduleForm({
                 disabled={pending}
                 selectClassName={fieldSelectClass}
                 onChange={(next) => {
-                  titleManuallyEdited.current = false;
+                  setTitleManual(false);
                   setMonthValue(next);
                 }}
               />
@@ -408,7 +397,7 @@ export function CreateScheduleForm({
                   value={yearValue}
                   disabled={pending}
                   onChange={(e) => {
-                    titleManuallyEdited.current = false;
+                    setTitleManual(false);
                     setYearValue(e.target.value);
                   }}
                   className={fieldSelectClass}
@@ -430,10 +419,10 @@ export function CreateScheduleForm({
               id="title"
               name="title"
               type="text"
-              value={title}
+              value={effectiveTitle}
               placeholder="Ví dụ: Lịch tiếp dân tháng 2 năm 2026"
               onChange={(e) => {
-                titleManuallyEdited.current = true;
+                setTitleManual(true);
                 setTitle(e.target.value);
               }}
               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/25"
@@ -443,7 +432,6 @@ export function CreateScheduleForm({
 
         <div className="space-y-3">
           <FileLocalPickRow
-            key={filePickKey}
             name="file"
             accept="application/pdf,.pdf"
             disabled={pending}

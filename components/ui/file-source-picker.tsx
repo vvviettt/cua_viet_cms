@@ -56,7 +56,8 @@ export function FileUrlUploadRow({
   error,
   className,
 }: FileUrlRowProps) {
-  const inputId = id ?? React.useId();
+  const uid = React.useId();
+  const inputId = id ?? uid;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -163,7 +164,8 @@ export const FileLocalPickRow = React.forwardRef<HTMLInputElement, FileLocalRowP
 ) {
   const innerRef = React.useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = React.useState<string | null>(null);
-  const inputId = id ?? React.useId();
+  const uid = React.useId();
+  const inputId = id ?? uid;
 
   const labelText = fileName ?? existingDisplayName?.trim() ?? null;
   const showExistingLink = Boolean(existingFileHref && !fileName);
@@ -273,7 +275,8 @@ export const FileUrlFieldRow = React.forwardRef<HTMLInputElement, FileUrlFieldRo
   },
   ref,
 ) {
-  const inputId = id ?? React.useId();
+  const uid = React.useId();
+  const inputId = id ?? uid;
 
   return (
     <div className={cn("space-y-2", className)}>

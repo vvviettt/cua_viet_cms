@@ -39,9 +39,9 @@ export function FeedbackList({ items, isFiltered }: Props) {
       return (
         <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-600">
           Không có hồ sơ khớp bộ lọc.{" "}
-          <a href="/phan-anh-kien-nghi" className="font-medium text-(--portal-primary) underline-offset-2 hover:underline">
+          <Link href="/phan-anh-kien-nghi" className="font-medium text-(--portal-primary) underline-offset-2 hover:underline">
             Xóa tìm kiếm
-          </a>
+          </Link>
         </p>
       );
     }

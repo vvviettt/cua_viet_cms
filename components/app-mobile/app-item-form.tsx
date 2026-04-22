@@ -53,7 +53,7 @@ export function AppItemForm(props: Props) {
 
   useEffect(() => {
     if (!state?.ok) return;
-    router.push("/cau-hinh-app?tab=menu");
+    router.push("/cau-hinh-app/trang-chu");
   }, [state?.ok, router]);
 
   if (!props.canEdit) {

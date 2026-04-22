@@ -13,9 +13,11 @@ type Props = {
   canEdit: boolean;
   defaultPrimaryHex: string;
   defaultHeroTitle: string;
+  /** Bỏ khung trùng khi form nằm trong layout có sẵn tiêu đề (ví dụ Trang chủ). */
+  embedded?: boolean;
 };
 
-export function AppThemeForm({ canEdit, defaultPrimaryHex, defaultHeroTitle }: Props) {
+export function AppThemeForm({ canEdit, defaultPrimaryHex, defaultHeroTitle, embedded = false }: Props) {
   const [state, formAction, pending] = useActionState(updateAppMobileThemeAction, initial);
 
   useEffect(() => {
@@ -26,22 +28,40 @@ export function AppThemeForm({ canEdit, defaultPrimaryHex, defaultHeroTitle }: P
 
   if (!canEdit) {
     return (
-      <section className="rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold text-zinc-900">Giao diện ứng dụng</h2>
-        <p className="mt-2 text-sm text-zinc-600">Tài khoản chỉ xem không chỉnh được cấu hình.</p>
+      <section
+        className={
+          embedded
+            ? "rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-5"
+            : "rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6"
+        }
+      >
+        {!embedded ? <h2 className="text-lg font-semibold text-zinc-900">Giao diện ứng dụng</h2> : null}
+        <p className={`text-sm text-zinc-600 ${embedded ? "" : "mt-2"}`}>
+          Tài khoản chỉ xem không chỉnh được cấu hình.
+        </p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="text-lg font-semibold text-zinc-900">Màu & tiêu đề trang chủ app</h2>
-      <p className="mt-2 text-sm text-zinc-600">
-        Màu chủ đạo dùng làm seed cho theme Material; tiêu đề hiển thị trên banner. Để trống thì app chỉ hiện
-        ảnh, không có lớp tối và không có chữ.
-      </p>
+    <section
+      className={
+        embedded
+          ? "rounded-xl border-0 bg-transparent p-0 shadow-none"
+          : "rounded-xl border border-(--portal-border) bg-white p-5 shadow-sm sm:p-6"
+      }
+    >
+      {!embedded ? (
+        <>
+          <h2 className="text-lg font-semibold text-zinc-900">Màu & tiêu đề trang chủ app</h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            Màu chủ đạo dùng làm seed cho theme Material; tiêu đề hiển thị trên banner. Để trống thì app chỉ hiện
+            ảnh, không có lớp tối và không có chữ.
+          </p>
+        </>
+      ) : null}
 
-      <form action={formAction} className="mt-6 flex flex-col gap-4">
+      <form action={formAction} className={`flex flex-col gap-4 ${embedded ? "" : "mt-6"}`}>
         {state?.error ? (
           <p
             className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"

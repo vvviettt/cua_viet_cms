@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { deleteAppMobileBannerFormAction, updateAppMobileBannerLinkAction } from "@/app/actions/app-mobile-config";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
+import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { findAppMobileBannerById } from "@/lib/db/app-mobile-config";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { canEditContent } from "@/lib/roles";
@@ -44,16 +45,14 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
   const linkErrRaw = sp.linkErr;
   const linkErrKey = Array.isArray(linkErrRaw) ? linkErrRaw[0] : linkErrRaw;
   const linkErrMessage = linkErrKey ? linkErrMessages[linkErrKey] ?? null : null;
-  const backTab = "banner";
-
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <Link
-          href={`/cau-hinh-app?tab=${backTab}`}
+          href={appMobileCauHinhPaths.trangChu}
           className="font-medium text-(--portal-primary) underline-offset-2 hover:underline"
         >
-          ← Cấu hình app
+          ← Cấu hình Trang chủ
         </Link>
       </div>
 
@@ -99,7 +98,7 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
       {canEdit ? (
         <form action={deleteAppMobileBannerFormAction} className="mt-8">
           <input type="hidden" name="bannerId" value={row.banner.id} />
-          <input type="hidden" name="backTab" value={backTab} />
+          <input type="hidden" name="returnPath" value={appMobileCauHinhPaths.trangChu} />
           <button
             type="submit"
             className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100"
