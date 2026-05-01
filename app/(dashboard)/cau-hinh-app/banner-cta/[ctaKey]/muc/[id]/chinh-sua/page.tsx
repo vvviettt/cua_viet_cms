@@ -7,7 +7,7 @@ import { SITE } from "@/lib/constants";
 import { findAppMobileHomeBannerItemById } from "@/lib/db/app-mobile-config";
 import { findFileById } from "@/lib/db/file-records";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 type Props = { params: Promise<{ ctaKey: string; id: string }> };
 
@@ -30,9 +30,11 @@ export default async function ChinhSuaMucCtaPage({ params }: Props) {
   if (!it) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const iconFile = it.iconFileId ? await findFileById(it.iconFileId) : null;
   const iconPreview = iconFile ? uploadsPublicHref(iconFile.relativePath) : undefined;
+  const itemKindForForm: "native" | "webview" =
+    it.kind === "native" || it.kind === "webview" ? it.kind : "native";
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -49,7 +51,7 @@ export default async function ChinhSuaMucCtaPage({ params }: Props) {
           mode="edit"
           canEdit={canEdit}
           itemId={it.id}
-          defaultKind={it.kind}
+          defaultKind={itemKindForForm}
           defaultRouteId={it.routeId ?? "none"}
           defaultWebUrl={it.webUrl ?? ""}
           defaultLabel={it.label}

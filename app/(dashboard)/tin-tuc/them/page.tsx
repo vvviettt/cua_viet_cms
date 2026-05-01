@@ -4,7 +4,7 @@ import { CreateNewsForm } from "@/components/news/create-news-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { listNewsArticleCategories } from "@/lib/db/news-article-categories";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: "Thêm tin tức",
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function ThemTinTucPage() {
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "news") : false;
   const categoryRows = await listNewsArticleCategories();
   const categories = categoryRows.map((c) => ({ id: c.id, title: c.title }));
 

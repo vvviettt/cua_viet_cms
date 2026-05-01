@@ -56,7 +56,7 @@ import {
   updateAppMobileTheme,
 } from "@/lib/db/app-mobile-config";
 import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -64,8 +64,10 @@ const UUID_RE =
 const HEX6_RE = /^#[0-9A-Fa-f]{6}$/;
 const MAX_BANNER_BYTES = 8 * 1024 * 1024;
 const MAX_ICON_BYTES = 512 * 1024;
+const MAX_MENU_DOCUMENT_BYTES = 100 * 1024 * 1024;
 const RELATIVE_PREFIX = "app-home";
 const ICON_RELATIVE_PREFIX = "app-home-icons";
+const MENU_DOC_RELATIVE_PREFIX = "app-home-menu-docs";
 const DEFAULT_ITEM_ACCENT_HEX = "#1565C0";
 
 const CAU_HINH_APP_MENU = appMobileCauHinhPaths.trangChu;
@@ -162,6 +164,91 @@ async function saveAppHomeBannerFile(
   }
 }
 
+function extFromMenuDocument(file: File, nameLower: string): { ext: string; mime: string } | null {
+  const mime = (file.type || "").toLowerCase();
+  const octetOk = !mime || mime === "application/octet-stream";
+  if (nameLower.endsWith(".pdf")) {
+    if (mime && !octetOk && mime !== "application/pdf") return null;
+    return { ext: "pdf", mime: mime || "application/pdf" };
+  }
+  if (nameLower.endsWith(".docx")) {
+    if (
+      mime &&
+      !octetOk &&
+      mime !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      return null;
+    }
+    return {
+      ext: "docx",
+      mime: mime || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+  }
+  if (nameLower.endsWith(".doc")) {
+    if (mime && !octetOk && mime !== "application/msword") return null;
+    return { ext: "doc", mime: mime || "application/msword" };
+  }
+  if (nameLower.endsWith(".xlsx")) {
+    if (
+      mime &&
+      !octetOk &&
+      mime !== "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) {
+      return null;
+    }
+    return {
+      ext: "xlsx",
+      mime: mime || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    };
+  }
+  if (nameLower.endsWith(".xls")) {
+    if (mime && !octetOk && mime !== "application/vnd.ms-excel") return null;
+    return { ext: "xls", mime: mime || "application/vnd.ms-excel" };
+  }
+  return null;
+}
+
+async function saveAppHomeMenuDocumentFile(
+  session: SessionPayload,
+  file: File,
+): Promise<{ ok: true; fileId: string } | { ok: false; error: string }> {
+  const nameLower = file.name.toLowerCase();
+  const parsed = extFromMenuDocument(file, nameLower);
+  if (!parsed) {
+    return { ok: false, error: "Chỉ nhận PDF, Word (.doc/.docx) hoặc Excel (.xls/.xlsx)." };
+  }
+  if (file.size > MAX_MENU_DOCUMENT_BYTES) {
+    return { ok: false, error: "Tệp tối đa 100MB." };
+  }
+  const buf = Buffer.from(await file.arrayBuffer());
+  if (buf.length < 16) {
+    return { ok: false, error: "Tệp không hợp lệ." };
+  }
+  const fileName = `menu-doc-${randomUUID()}.${parsed.ext}`;
+  const relativePath = `${MENU_DOC_RELATIVE_PREFIX}/${fileName}`;
+  await uploadBufferToSupabase({
+    relativePath,
+    buf,
+    contentType: parsed.mime,
+    cacheControl: "3600",
+    upsert: false,
+  });
+  try {
+    const fileId = await insertUploadedFile({
+      category: "app_home_menu_document",
+      relativePath,
+      originalName: file.name,
+      mimeType: parsed.mime,
+      sizeBytes: buf.length,
+      uploadedById: session.userId,
+    });
+    return { ok: true, fileId };
+  } catch (e) {
+    console.error(e);
+    return { ok: false, error: "Không thể lưu tệp. Thử lại sau." };
+  }
+}
+
 async function saveAppHomeIconFile(
   session: SessionPayload,
   file: File,
@@ -227,7 +314,7 @@ export async function updateAppMobileThemeAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   await ensureAppMobileThemeRow();
 
@@ -261,9 +348,10 @@ export async function updateAppMobileHomeBannerAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
-  await ensureAppMobileHomeBannerRow();
+  const bannerRow = await ensureAppMobileHomeBannerRow();
+  const oldDecorationFileId = bannerRow.decorationFileId;
 
   const title = String(formData.get("title") ?? "").trim();
   const subtitle = String(formData.get("subtitle") ?? "").trim();
@@ -279,11 +367,40 @@ export async function updateAppMobileHomeBannerAction(
   if (!lookupLabel) return { error: "Vui lòng nhập nhãn nút 2." };
   if (lookupLabel.length > 60) return { error: "Nhãn nút 2 tối đa 60 ký tự." };
 
+  const decorationUpload = formData.get("decoration");
+  const clearDecoration =
+    formData.get("clearDecoration") === "1" ||
+    formData.get("clearDecoration") === "on";
+
+  let nextDecorationFileId: string | null | undefined = undefined;
+  if (decorationUpload instanceof File && decorationUpload.size > 0) {
+    const saved = await saveAppHomeBannerFile(session, decorationUpload);
+    if (!saved.ok) return { error: saved.error };
+    nextDecorationFileId = saved.fileId;
+  } else if (clearDecoration) {
+    nextDecorationFileId = null;
+  }
+
   try {
-    await updateAppMobileHomeBanner({ title, subtitle, applyLabel, lookupLabel });
+    await updateAppMobileHomeBanner({
+      title,
+      subtitle,
+      applyLabel,
+      lookupLabel,
+      ...(nextDecorationFileId !== undefined ? { decorationFileId: nextDecorationFileId } : {}),
+    });
   } catch (e) {
     console.error(e);
+    if (nextDecorationFileId != null) await removeBannerFileById(nextDecorationFileId);
     return { error: "Không thể lưu. Thử lại sau." };
+  }
+
+  if (
+    nextDecorationFileId !== undefined &&
+    oldDecorationFileId &&
+    oldDecorationFileId !== nextDecorationFileId
+  ) {
+    await removeBannerFileById(oldDecorationFileId);
   }
 
   revalidateCauHinhAppTree();
@@ -296,7 +413,7 @@ export async function createAppMobileBannerAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền thêm." };
 
   const placementRaw = String(formData.get("placement") ?? "").trim();
   const placement = parsePlacement(placementRaw) ?? "top";
@@ -352,7 +469,7 @@ export async function updateAppMobileBannerLinkAction(formData: FormData): Promi
 
   const session = await getSession();
   if (!session) redirect(`${back}?linkErr=session`);
-  if (!canEditContent(session.role)) redirect(`${back}?linkErr=forbidden`);
+  if (!(await sessionCanEditModule(session, "app_mobile"))) redirect(`${back}?linkErr=forbidden`);
 
   if (!id || !UUID_RE.test(id)) redirect(`${back}?linkErr=bad_id`);
 
@@ -388,7 +505,7 @@ export async function updateAppMobileBannerLinkAction(formData: FormData): Promi
 export async function deleteAppMobileBannerFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
   const backHref = resolveBannerListHref(formData);
-  if (!session || !canEditContent(session.role)) {
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) {
     redirect(backHref);
   }
 
@@ -417,7 +534,7 @@ export async function createAppMobileSectionAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền thêm." };
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Vui lòng nhập tên nhóm." };
@@ -451,7 +568,7 @@ export async function createAppMobileHomeBannerSectionAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền thêm." };
 
   const ctaKey = parseCtaKey(String(formData.get("ctaKey") ?? "").trim());
   if (!ctaKey) return { error: "CTA không hợp lệ." };
@@ -460,10 +577,11 @@ export async function createAppMobileHomeBannerSectionAction(
   if (!title) return { error: "Vui lòng nhập tên nhóm." };
   if (title.length > 200) return { error: "Tên nhóm tối đa 200 ký tự." };
 
-  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  const kind = parseHomeBannerItemKind(String(formData.get("kind") ?? ""));
   if (!kind) return { error: "Loại mục không hợp lệ." };
   const routeIdRaw = String(formData.get("routeId") ?? "").trim();
   const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  const documentUpload = formData.get("documentFile");
   let routeId: string | null = null;
   let webUrl: string | null = null;
   if (kind === "native") {
@@ -471,7 +589,7 @@ export async function createAppMobileHomeBannerSectionAction(
       return { error: "Vui lòng chọn route native hợp lệ." };
     }
     routeId = routeIdRaw;
-  } else {
+  } else if (kind === "webview") {
     if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
     if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
     try {
@@ -483,6 +601,10 @@ export async function createAppMobileHomeBannerSectionAction(
       return { error: "URL không hợp lệ." };
     }
     webUrl = webUrlRaw;
+  } else {
+    if (!(documentUpload instanceof File) || documentUpload.size === 0) {
+      return { error: "Chọn tệp PDF, Word hoặc Excel." };
+    }
   }
 
   const iconFile = formData.get("iconFile");
@@ -492,6 +614,18 @@ export async function createAppMobileHomeBannerSectionAction(
   const savedIcon = await saveAppHomeIconFile(session, iconFile);
   if (!savedIcon.ok) return { error: savedIcon.error };
   const iconFileId = savedIcon.fileId;
+
+  let documentFileId: string | null = null;
+  let newDocFileId: string | null = null;
+  if (kind === "file") {
+    const savedDoc = await saveAppHomeMenuDocumentFile(session, documentUpload as File);
+    if (!savedDoc.ok) {
+      await removeBannerFileById(iconFileId);
+      return { error: savedDoc.error };
+    }
+    documentFileId = savedDoc.fileId;
+    newDocFileId = savedDoc.fileId;
+  }
 
   const sortOrder = await nextAppMobileHomeBannerSectionSortOrder(ctaKey);
 
@@ -503,12 +637,14 @@ export async function createAppMobileHomeBannerSectionAction(
       kind,
       routeId,
       webUrl,
+      documentFileId,
       sortOrder,
       isActive: true,
     });
   } catch (e) {
     console.error(e);
     await removeBannerFileById(iconFileId);
+    if (newDocFileId) await removeBannerFileById(newDocFileId);
     return { error: "Không thể thêm nhóm." };
   }
 
@@ -522,7 +658,7 @@ export async function updateAppMobileHomeBannerSectionAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("sectionId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã nhóm không hợp lệ." };
@@ -533,18 +669,21 @@ export async function updateAppMobileHomeBannerSectionAction(
   if (!title) return { error: "Vui lòng nhập tên nhóm." };
   if (title.length > 200) return { error: "Tên nhóm tối đa 200 ký tự." };
 
-  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  const kind = parseHomeBannerItemKind(String(formData.get("kind") ?? ""));
   if (!kind) return { error: "Loại mục không hợp lệ." };
   const routeIdRaw = String(formData.get("routeId") ?? "").trim();
   const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  const documentUpload = formData.get("documentFile");
   let routeId: string | null = null;
   let webUrl: string | null = null;
+  let documentFileId: string | null = existing.documentFileId ?? null;
   if (kind === "native") {
     if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
       return { error: "Vui lòng chọn route native hợp lệ." };
     }
     routeId = routeIdRaw;
-  } else {
+    documentFileId = null;
+  } else if (kind === "webview") {
     if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
     if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
     try {
@@ -556,6 +695,18 @@ export async function updateAppMobileHomeBannerSectionAction(
       return { error: "URL không hợp lệ." };
     }
     webUrl = webUrlRaw;
+    documentFileId = null;
+  } else {
+    routeId = null;
+    webUrl = null;
+    const shouldUploadDoc = documentUpload instanceof File && documentUpload.size > 0;
+    if (shouldUploadDoc) {
+      const savedDoc = await saveAppHomeMenuDocumentFile(session, documentUpload as File);
+      if (!savedDoc.ok) return { error: savedDoc.error };
+      documentFileId = savedDoc.fileId;
+    } else if (!documentFileId) {
+      return { error: "Chọn tệp PDF, Word hoặc Excel." };
+    }
   }
 
   const iconFile = formData.get("iconFile");
@@ -571,6 +722,12 @@ export async function updateAppMobileHomeBannerSectionAction(
     return { error: "Nhóm chưa có icon. Vui lòng upload icon (SVG) cho nhóm." };
   }
 
+  const oldDocumentFileId = existing.documentFileId ?? null;
+  let newDocumentFileId: string | null = null;
+  if (kind === "file" && documentUpload instanceof File && documentUpload.size > 0) {
+    newDocumentFileId = documentFileId;
+  }
+
   try {
     await updateAppMobileHomeBannerSectionTitle(id, {
       title,
@@ -578,16 +735,21 @@ export async function updateAppMobileHomeBannerSectionAction(
       kind,
       routeId,
       webUrl,
+      documentFileId,
     });
   } catch (e) {
     console.error(e);
     if (newIconFileId) await removeBannerFileById(newIconFileId);
+    if (newDocumentFileId) await removeBannerFileById(newDocumentFileId);
     return { error: "Không thể cập nhật." };
   }
 
   const oldIconFileId = existing.iconFileId ?? null;
   if (oldIconFileId && oldIconFileId !== nextIconFileId) {
     await removeBannerFileById(oldIconFileId);
+  }
+  if (oldDocumentFileId && oldDocumentFileId !== documentFileId) {
+    await removeBannerFileById(oldDocumentFileId);
   }
 
   revalidateCauHinhAppTree();
@@ -596,17 +758,33 @@ export async function updateAppMobileHomeBannerSectionAction(
 
 export async function deleteAppMobileHomeBannerSectionFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) redirect(CAU_HINH_APP_MENU);
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) redirect(CAU_HINH_APP_MENU);
 
   const id = String(formData.get("sectionId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) redirect(CAU_HINH_APP_MENU);
   const existing = await findAppMobileHomeBannerSectionById(id);
   if (!existing) redirect(CAU_HINH_APP_MENU);
 
+  const iconId = existing.iconFileId ?? null;
+  const docId = existing.documentFileId ?? null;
   try {
     await deleteAppMobileHomeBannerSection(id);
   } catch (e) {
     console.error(e);
+  }
+  if (iconId) {
+    try {
+      await removeBannerFileById(iconId);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (docId) {
+    try {
+      await removeBannerFileById(docId);
+    } catch {
+      /* ignore */
+    }
   }
   revalidateCauHinhAppTree();
   redirect(CAU_HINH_APP_MENU);
@@ -618,7 +796,7 @@ export async function moveAppMobileHomeBannerSectionServer(
   direction: "up" | "down",
 ): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await moveAppMobileHomeBannerSectionRelative(id, ctaKey, direction);
@@ -630,7 +808,7 @@ export async function moveAppMobileHomeBannerSectionServer(
 
 export async function setAppMobileHomeBannerSectionActiveServer(id: string, isActive: boolean): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileHomeBannerSectionActive(id, isActive);
@@ -646,7 +824,7 @@ export async function createAppMobileHomeBannerItemAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền thêm." };
 
   const sectionId = String(formData.get("sectionId") ?? "").trim();
   if (!sectionId || !UUID_RE.test(sectionId)) return { error: "Nhóm CTA không hợp lệ." };
@@ -728,7 +906,7 @@ export async function updateAppMobileHomeBannerItemAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("itemId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã mục không hợp lệ." };
@@ -809,7 +987,7 @@ export async function updateAppMobileHomeBannerItemAction(
 
 export async function deleteAppMobileHomeBannerItemFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) redirect(CAU_HINH_APP_MENU);
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) redirect(CAU_HINH_APP_MENU);
   const id = String(formData.get("itemId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) redirect(CAU_HINH_APP_MENU);
   const existing = await findAppMobileHomeBannerItemById(id);
@@ -830,7 +1008,7 @@ export async function moveAppMobileHomeBannerItemServer(
   direction: "up" | "down",
 ): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(itemId) || !UUID_RE.test(sectionId)) return;
   try {
     await moveAppMobileHomeBannerItemRelative(itemId, sectionId, direction);
@@ -842,7 +1020,7 @@ export async function moveAppMobileHomeBannerItemServer(
 
 export async function setAppMobileHomeBannerItemActiveServer(id: string, isActive: boolean): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileHomeBannerItemActive(id, isActive);
@@ -858,7 +1036,7 @@ export async function updateAppMobileSectionAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("sectionId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã nhóm không hợp lệ." };
@@ -904,7 +1082,7 @@ export async function updateAppMobileSectionAction(
 
 export async function deleteAppMobileSectionFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) {
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) {
     redirect(CAU_HINH_APP_MENU);
   }
 
@@ -929,33 +1107,45 @@ function parseItemKind(raw: string): "native" | "webview" | null {
   return null;
 }
 
+function parseHomeBannerItemKind(raw: string): "native" | "webview" | "file" | null {
+  if (raw === "native" || raw === "webview" || raw === "file") return raw;
+  return null;
+}
+
+function parseHomeMenuItemKind(raw: string): "native" | "webview" | "file" | null {
+  if (raw === "native" || raw === "webview" || raw === "file") return raw;
+  return null;
+}
+
 export async function createAppMobileItemAction(
   _prev: AppMobileFormState,
   formData: FormData,
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền thêm." };
 
   const sectionId = String(formData.get("sectionId") ?? "").trim();
   if (!sectionId || !UUID_RE.test(sectionId)) return { error: "Nhóm menu không hợp lệ." };
   const section = await findAppMobileSectionById(sectionId);
   if (!section) return { error: "Không tìm thấy nhóm menu." };
 
-  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  const kind = parseHomeMenuItemKind(String(formData.get("kind") ?? ""));
   if (!kind) return { error: "Loại mục không hợp lệ." };
 
   const routeIdRaw = String(formData.get("routeId") ?? "").trim();
   const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  const documentUpload = formData.get("documentFile");
 
   let routeId: string | null = null;
   let webUrl: string | null = null;
+  let documentFileId: string | null = null;
   if (kind === "native") {
     if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
       return { error: "Vui lòng chọn route native hợp lệ." };
     }
     routeId = routeIdRaw;
-  } else {
+  } else if (kind === "webview") {
     if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
     if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
     try {
@@ -967,7 +1157,16 @@ export async function createAppMobileItemAction(
       return { error: "URL không hợp lệ." };
     }
     webUrl = webUrlRaw;
+  } else {
+    if (!(documentUpload instanceof File) || documentUpload.size === 0) {
+      return { error: "Chọn tệp PDF, Word hoặc Excel." };
+    }
+    const savedDoc = await saveAppHomeMenuDocumentFile(session, documentUpload);
+    if (!savedDoc.ok) return { error: savedDoc.error };
+    documentFileId = savedDoc.fileId;
   }
+
+  console.log("kind", kind);
 
   const label = String(formData.get("label") ?? "").trim();
   if (!label) return { error: "Vui lòng nhập nhãn hiển thị." };
@@ -997,6 +1196,7 @@ export async function createAppMobileItemAction(
       kind,
       routeId,
       webUrl,
+      documentFileId,
       label,
       iconKey,
       iconFileId,
@@ -1008,6 +1208,9 @@ export async function createAppMobileItemAction(
     console.error(e);
     if (iconFileId) {
       await removeBannerFileById(iconFileId);
+    }
+    if (documentFileId) {
+      await removeBannerFileById(documentFileId);
     }
     return { error: "Không thể thêm mục." };
   }
@@ -1022,7 +1225,7 @@ export async function updateAppMobileItemAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("itemId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã mục không hợp lệ." };
@@ -1030,20 +1233,23 @@ export async function updateAppMobileItemAction(
   const existing = await findAppMobileItemById(id);
   if (!existing) return { error: "Không tìm thấy mục." };
 
-  const kind = parseItemKind(String(formData.get("kind") ?? ""));
+  const kind = parseHomeMenuItemKind(String(formData.get("kind") ?? ""));
   if (!kind) return { error: "Loại mục không hợp lệ." };
 
   const routeIdRaw = String(formData.get("routeId") ?? "").trim();
   const webUrlRaw = String(formData.get("webUrl") ?? "").trim();
+  const documentUpload = formData.get("documentFile");
 
   let routeId: string | null = null;
   let webUrl: string | null = null;
+  let documentFileId: string | null = existing.documentFileId ?? null;
   if (kind === "native") {
     if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
       return { error: "Vui lòng chọn route native hợp lệ." };
     }
     routeId = routeIdRaw;
-  } else {
+    documentFileId = null;
+  } else if (kind === "webview") {
     if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
     if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
     try {
@@ -1055,6 +1261,18 @@ export async function updateAppMobileItemAction(
       return { error: "URL không hợp lệ." };
     }
     webUrl = webUrlRaw;
+    documentFileId = null;
+  } else {
+    routeId = null;
+    webUrl = null;
+    const shouldUploadDoc = documentUpload instanceof File && documentUpload.size > 0;
+    if (shouldUploadDoc) {
+      const savedDoc = await saveAppHomeMenuDocumentFile(session, documentUpload as File);
+      if (!savedDoc.ok) return { error: savedDoc.error };
+      documentFileId = savedDoc.fileId;
+    } else if (!documentFileId) {
+      return { error: "Chọn tệp PDF, Word hoặc Excel." };
+    }
   }
 
   const label = String(formData.get("label") ?? "").trim();
@@ -1085,11 +1303,20 @@ export async function updateAppMobileItemAction(
   }
   const accentHex = DEFAULT_ITEM_ACCENT_HEX;
 
+  const oldDocumentFileId = existing.documentFileId ?? null;
+  let newDocumentFileId: string | null = null;
+  if (kind === "file" && documentUpload instanceof File && documentUpload.size > 0) {
+    newDocumentFileId = documentFileId;
+  }
+
+  console.log("kind", kind);
+
   try {
     await updateAppMobileItemContent(id, {
       kind,
       routeId,
       webUrl,
+      documentFileId,
       label,
       iconKey,
       accentHex,
@@ -1098,6 +1325,7 @@ export async function updateAppMobileItemAction(
   } catch (e) {
     console.error(e);
     if (newIconFileId) await removeBannerFileById(newIconFileId);
+    if (newDocumentFileId) await removeBannerFileById(newDocumentFileId);
     return { error: "Không thể cập nhật." };
   }
 
@@ -1105,6 +1333,9 @@ export async function updateAppMobileItemAction(
   const oldIconFileId = existing.iconFileId ?? null;
   if (oldIconFileId && oldIconFileId !== nextIconFileId) {
     await removeBannerFileById(oldIconFileId);
+  }
+  if (oldDocumentFileId && oldDocumentFileId !== documentFileId) {
+    await removeBannerFileById(oldDocumentFileId);
   }
 
   revalidateCauHinhAppTree();
@@ -1114,7 +1345,7 @@ export async function updateAppMobileItemAction(
 
 export async function deleteAppMobileItemFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) {
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) {
     redirect(CAU_HINH_APP_MENU);
   }
 
@@ -1124,11 +1355,13 @@ export async function deleteAppMobileItemFormAction(formData: FormData): Promise
   const existing = await findAppMobileItemById(id);
   if (!existing) redirect(CAU_HINH_APP_MENU);
 
+  const docId = existing.documentFileId ?? null;
   try {
     await deleteAppMobileItem(id);
   } catch (e) {
     console.error(e);
   }
+  if (docId) await removeBannerFileById(docId);
 
   revalidateCauHinhAppTree();
   redirect(CAU_HINH_APP_MENU);
@@ -1136,7 +1369,7 @@ export async function deleteAppMobileItemFormAction(formData: FormData): Promise
 
 export async function moveAppMobileSectionServer(id: string, direction: "up" | "down"): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await moveAppMobileSectionRelative(id, direction);
@@ -1152,7 +1385,7 @@ export async function moveAppMobileItemServer(
   direction: "up" | "down",
 ): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(itemId) || !UUID_RE.test(sectionId)) return;
   try {
     await moveAppMobileItemRelative(itemId, sectionId, direction);
@@ -1168,7 +1401,7 @@ export async function moveAppMobileBannerServer(
   direction: "up" | "down",
 ): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await moveAppMobileBannerRelative(id, placement, direction);
@@ -1180,7 +1413,7 @@ export async function moveAppMobileBannerServer(
 
 export async function setAppMobileSectionActiveServer(id: string, isActive: boolean): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileSectionActive(id, isActive);
@@ -1192,7 +1425,7 @@ export async function setAppMobileSectionActiveServer(id: string, isActive: bool
 
 export async function setAppMobileItemActiveServer(id: string, isActive: boolean): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileItemActive(id, isActive);
@@ -1204,7 +1437,7 @@ export async function setAppMobileItemActiveServer(id: string, isActive: boolean
 
 export async function setAppMobileItemDefaultFavoriteServer(id: string, isDefaultFavorite: boolean): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileItemDefaultFavorite(id, isDefaultFavorite);
@@ -1216,7 +1449,7 @@ export async function setAppMobileItemDefaultFavoriteServer(id: string, isDefaul
 
 export async function setAppMobileBannerActiveServer(id: string, isActive: boolean): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileBannerActive(id, isActive);
@@ -1228,7 +1461,7 @@ export async function setAppMobileBannerActiveServer(id: string, isActive: boole
 
 export async function setAppMobileShellTabActiveServer(id: string, isActive: boolean): Promise<{ ok?: boolean; error?: string }> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return { error: "Không có quyền." };
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return { error: "Không có quyền." };
   if (!UUID_RE.test(id)) return { error: "Mã tab không hợp lệ." };
   try {
     await setAppMobileShellTabActive(id, isActive);
@@ -1242,7 +1475,7 @@ export async function setAppMobileShellTabActiveServer(id: string, isActive: boo
 
 export async function moveAppMobileShellTabServer(id: string, direction: "up" | "down"): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!UUID_RE.test(id)) return;
   try {
     await moveAppMobileShellTabRelative(id, direction);

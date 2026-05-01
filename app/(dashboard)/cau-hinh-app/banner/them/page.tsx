@@ -4,7 +4,7 @@ import { AppBannerCreateForm } from "@/components/app-mobile/app-banner-create-f
 import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: "Thêm banner app",
@@ -17,7 +17,7 @@ type Props = {
 
 export default async function ThemBannerAppPage({ searchParams }: Props) {
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const sp = await searchParams;
   const raw = Array.isArray(sp.placement) ? sp.placement[0] : sp.placement;
   const placement = raw === "after_section_2" ? "after_section_2" : "top";

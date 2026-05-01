@@ -7,7 +7,7 @@ import { SITE } from "@/lib/constants";
 import { findAppMobileHomeBannerSectionById } from "@/lib/db/app-mobile-config";
 import { findFileById } from "@/lib/db/file-records";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 type Props = { params: Promise<{ ctaKey: string; id: string }> };
 
@@ -30,9 +30,11 @@ export default async function ChinhSuaNhomCtaPage({ params }: Props) {
   if (!sec) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const iconFile = sec.iconFileId ? await findFileById(sec.iconFileId) : null;
   const iconUrl = iconFile?.relativePath ? uploadsPublicHref(iconFile.relativePath) : null;
+  const docFile = sec.documentFileId ? await findFileById(sec.documentFileId) : null;
+  const documentPreviewSrc = docFile?.relativePath ? uploadsPublicHref(docFile.relativePath) : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -54,6 +56,8 @@ export default async function ChinhSuaNhomCtaPage({ params }: Props) {
           defaultKind={sec.kind}
           defaultRouteId={sec.routeId ?? "none"}
           defaultWebUrl={sec.webUrl ?? ""}
+          defaultDocumentPreviewSrc={documentPreviewSrc}
+          defaultDocumentName={docFile?.originalName ?? null}
           defaultIconUrl={iconUrl}
           defaultIconDisplayName={iconFile?.originalName ?? null}
         />

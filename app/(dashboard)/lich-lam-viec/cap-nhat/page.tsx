@@ -6,7 +6,7 @@ import { SITE } from "@/lib/constants";
 import { listActiveWorkScheduleTypes } from "@/lib/db/work-schedule-types";
 import { parseScheduleEditPrefill } from "@/lib/work-schedules/edit-prefill";
 import { findBySchedulePeriod } from "@/lib/work-schedules/store";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: "Tạo / cập nhật lịch làm việc",
@@ -19,7 +19,7 @@ export default async function CapNhatLichLamViecPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getSession();
-  const canUpload = session ? canEditContent(session.role) : false;
+  const canUpload = session ? await sessionCanEditModule(session, "work_schedule") : false;
   const scheduleTypes = await listActiveWorkScheduleTypes();
   const sp = await searchParams;
   const prefill = parseScheduleEditPrefill(sp);

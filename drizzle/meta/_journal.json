@@ -211,6 +211,76 @@
       "when": 1776850000000,
       "tag": "0029_app_mobile_home_items_default_favorite",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1776900000000,
+      "tag": "0033_user_module_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1777433659328,
+      "tag": "0031_uneven_mongu",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1777500000000,
+      "tag": "0034_user_module_permissions_updated_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1777600000000,
+      "tag": "0035_user_module_permissions_boolean_flags",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1777700000000,
+      "tag": "0036_users_is_admin_drop_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1777800000000,
+      "tag": "0037_app_home_menu_item_file",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1777900000000,
+      "tag": "0038_banner_item_kind_split",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1778000000000,
+      "tag": "0039_drop_word_article_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1778100000000,
+      "tag": "0040_app_mobile_home_banner_decoration",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1778200000000,
+      "tag": "0041_banner_section_document_file",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,7 @@ import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { findAppMobileSectionByIdForCms } from "@/lib/db/app-mobile-config";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 
 type Props = { params: Promise<{ id: string }> };
@@ -25,7 +25,7 @@ export default async function ChinhSuaNhomMenuPage({ params }: Props) {
   const defaultIconDisplayName = row.iconFile?.originalName ?? null;
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

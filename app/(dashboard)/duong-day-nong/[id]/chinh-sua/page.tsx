@@ -5,7 +5,7 @@ import { EditHotlineForm } from "@/components/hotlines/edit-hotline-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { findPublicHotlineById } from "@/lib/db/public-hotlines";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -25,7 +25,7 @@ export default async function ChinhSuaDuongDayNongPage({ params }: Props) {
   if (!row) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "hotline") : false;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

@@ -4,7 +4,7 @@ import { ScheduleList } from "@/components/work-schedules/schedule-list";
 import { SchedulePagination } from "@/components/work-schedules/schedule-pagination";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import {
   WORK_SCHEDULE_LIST_PAGE_SIZE,
   listWorkSchedulesPaginated,
@@ -21,7 +21,7 @@ export default async function LichLamViecPage({
   searchParams: Promise<{ page?: string | string[] }>;
 }) {
   const session = await getSession();
-  const canUpload = session ? canEditContent(session.role) : false;
+  const canUpload = session ? await sessionCanEditModule(session, "work_schedule") : false;
   const sp = await searchParams;
   const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
   const requestedPage = Math.max(1, parseInt(String(pageRaw ?? "1"), 10) || 1);

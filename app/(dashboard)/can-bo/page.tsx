@@ -5,7 +5,7 @@ import { StaffListPagination } from "@/components/staff/staff-list-pagination";
 import { StaffSearchForm } from "@/components/staff/staff-search-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import { STAFF_LIST_PAGE_SIZE, listStaffMembersPaginated } from "@/lib/db/staff-members";
 
 export const metadata: Metadata = {
@@ -31,7 +31,7 @@ export default async function CanBoPage({
   });
   const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "staff") : false;
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">

@@ -5,7 +5,7 @@ import { AppHomeBannerItemForm } from "@/components/app-mobile/app-home-banner-i
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { findAppMobileHomeBannerSectionById } from "@/lib/db/app-mobile-config";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 type Props = { params: Promise<{ ctaKey: string; id: string }> };
 
@@ -28,7 +28,7 @@ export default async function ThemMucCtaPage({ params }: Props) {
   if (!sec) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

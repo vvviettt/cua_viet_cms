@@ -61,7 +61,7 @@ async function main() {
     process.exit(1);
   }
 
-  const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin")).limit(1);
+  const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.isAdmin, true)).limit(1);
   const answeredBy = admin?.id ?? null;
 
   await db.insert(citizenFeedback).values([

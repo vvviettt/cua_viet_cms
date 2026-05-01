@@ -14,8 +14,9 @@ import {
   listAppMobileSectionsForCms,
   listAppMobileShellTabsForCms,
 } from "@/lib/db/app-mobile-config";
+import { findFileById } from "@/lib/db/file-records";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: `Trang chủ app — ${SITE.shortTitle}`,
@@ -33,7 +34,7 @@ function toBannerList(rows: Awaited<ReturnType<typeof listAppMobileBannersForCms
 
 export default async function CauHinhAppTrangChuPage() {
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const [theme, homeBanner, ctaApplySections, ctaLookupSections, ctaItems, bannersTop, sections, items, shellTabsRows] =
     await Promise.all([
       ensureAppMobileThemeRow(),
@@ -130,6 +131,14 @@ export default async function CauHinhAppTrangChuPage() {
   const listCtaApplySections = toCtaSectionList("apply_online", ctaApplySections);
   const listCtaLookupSections = toCtaSectionList("lookup_result", ctaLookupSections);
 
+  const homeBannerDecorationFile = homeBanner.decorationFileId
+    ? await findFileById(homeBanner.decorationFileId)
+    : null;
+  const defaultHomeBannerDecorationSrc =
+    homeBannerDecorationFile?.relativePath != null && homeBannerDecorationFile.relativePath.length > 0
+      ? uploadsPublicHref(homeBannerDecorationFile.relativePath)
+      : null;
+
   return (
     <AppMobileCauHinhPageShell
       wide
@@ -153,6 +162,7 @@ export default async function CauHinhAppTrangChuPage() {
           defaultHomeBannerSubtitle={homeBanner.subtitle}
           defaultHomeBannerApplyLabel={homeBanner.applyLabel}
           defaultHomeBannerLookupLabel={homeBanner.lookupLabel}
+          defaultHomeBannerDecorationSrc={defaultHomeBannerDecorationSrc}
           homeBannerApplySections={listCtaApplySections}
           homeBannerLookupSections={listCtaLookupSections}
           sections={listSections}

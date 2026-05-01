@@ -5,7 +5,7 @@ import { EditStaffForm } from "@/components/staff/edit-staff-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { findStaffMemberById } from "@/lib/db/staff-members";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -31,7 +31,7 @@ export default async function ChinhSuaCanBoPage({ params }: Props) {
   }
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "staff") : false;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

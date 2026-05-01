@@ -81,6 +81,7 @@ async function main() {
       kind,
       routeId: extra.routeId ?? null,
       webUrl: extra.webUrl ?? null,
+      documentFileId: null,
       label,
       iconKey,
       iconFileId: null,

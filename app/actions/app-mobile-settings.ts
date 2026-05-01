@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import {
   deleteAppMobileFaq,
   ensureAppMobileSettingsRow,
@@ -35,7 +35,7 @@ export async function updateAppMobileSettingsAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   await ensureAppMobileSettingsRow();
 
@@ -71,7 +71,7 @@ export async function createAppMobileFaqAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền thêm." };
 
   const question = String(formData.get("question") ?? "").trim();
   const answer = String(formData.get("answer") ?? "").trim();
@@ -100,7 +100,7 @@ export async function updateAppMobileFaqAction(
 ): Promise<AppMobileFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "app_mobile"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("id") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã câu hỏi không hợp lệ." };
@@ -127,7 +127,7 @@ export async function updateAppMobileFaqAction(
 
 export async function deleteAppMobileFaqServer(id: string): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!id || !UUID_RE.test(id)) return;
   try {
     await deleteAppMobileFaq(id);
@@ -139,7 +139,7 @@ export async function deleteAppMobileFaqServer(id: string): Promise<void> {
 
 export async function moveAppMobileFaqServer(id: string, direction: "up" | "down"): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) return;
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
   if (!id || !UUID_RE.test(id)) return;
   try {
     await moveAppMobileFaqRelative(id, direction);

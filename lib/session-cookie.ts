@@ -1,5 +1,3 @@
-import { isUserRole, type UserRole } from "@/lib/roles";
-
 function utf8ToBase64Url(utf8: string): string {
   const bytes = new TextEncoder().encode(utf8);
   let bin = "";
@@ -20,25 +18,26 @@ function base64UrlToUtf8(b64url: string): string {
 export type SessionPayload = {
   userId: string;
   email: string;
-  role: UserRole;
+  isAdmin: boolean;
   name?: string;
 };
 
 function parseJsonSession(text: string): SessionPayload | null {
   try {
     const o = JSON.parse(text) as Record<string, unknown>;
-    if (
-      typeof o.userId !== "string" ||
-      typeof o.email !== "string" ||
-      typeof o.role !== "string"
-    ) {
+    if (typeof o.userId !== "string" || typeof o.email !== "string") {
       return null;
     }
-    if (!isUserRole(o.role)) {
+    let isAdmin = false;
+    if (typeof o.isAdmin === "boolean") {
+      isAdmin = o.isAdmin;
+    } else if (typeof o.role === "string") {
+      isAdmin = o.role === "admin";
+    } else {
       return null;
     }
     const name = typeof o.name === "string" ? o.name : undefined;
-    return { userId: o.userId, email: o.email, role: o.role, name };
+    return { userId: o.userId, email: o.email, isAdmin, name };
   } catch {
     return null;
   }
@@ -49,7 +48,7 @@ export function serializeSessionPayload(p: SessionPayload): string {
   const body = JSON.stringify({
     userId: p.userId,
     email: p.email,
-    role: p.role,
+    isAdmin: p.isAdmin,
     ...(p.name != null ? { name: p.name } : {}),
   });
   return utf8ToBase64Url(body);

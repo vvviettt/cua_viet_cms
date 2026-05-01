@@ -56,7 +56,7 @@ async function main() {
     email,
     passwordHash,
     fullName: process.env.SEED_ADMIN_NAME ?? "Quản trị viên",
-    role: "admin",
+    isAdmin: true,
     isActive: true,
     createdAt: now,
     updatedAt: now,

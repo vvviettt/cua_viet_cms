@@ -8,7 +8,7 @@ import {
   type AppMobileFormState,
 } from "@/app/actions/app-mobile-config";
 import { APP_MOBILE_NATIVE_ROUTE_IDS } from "@/lib/app-mobile-native-routes";
-import { FileSourcePicker } from "@/components/ui/file-source-picker";
+import { FileLocalPickRow, FileSourcePicker } from "@/components/ui/file-source-picker";
 
 const fieldClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25";
@@ -16,15 +16,19 @@ const fieldClass =
 const initial: AppMobileFormState = {};
 
 type CreateProps = { mode: "create"; canEdit: boolean; ctaKey: "apply_online" | "lookup_result" };
+type SectionKind = "native" | "webview" | "file";
+
 type EditProps = {
   mode: "edit";
   canEdit: boolean;
   ctaKey: "apply_online" | "lookup_result";
   sectionId: string;
   defaultTitle: string;
-  defaultKind: "native" | "webview";
+  defaultKind: SectionKind;
   defaultRouteId: string;
   defaultWebUrl: string;
+  defaultDocumentPreviewSrc?: string | null;
+  defaultDocumentName?: string | null;
   defaultIconUrl?: string | null;
   defaultIconDisplayName?: string | null;
 };
@@ -42,14 +46,20 @@ export function AppHomeBannerSectionForm(props: Props) {
   }, [state?.ok, router]);
 
   const isEdit = props.mode === "edit";
-  const initialKind: "native" | "webview" = isEdit ? props.defaultKind : "native";
-  const [kind, setKind] = useState<"native" | "webview">(initialKind);
+  const initialKind: SectionKind = isEdit ? props.defaultKind : "native";
+  const [kind, setKind] = useState<SectionKind>(initialKind);
+  const [pickedDocumentFile, setPickedDocumentFile] = useState<File | null>(null);
   const defaultIconUrl = isEdit ? props.defaultIconUrl ?? null : null;
   const defaultIconDisplayName = isEdit ? props.defaultIconDisplayName ?? null : null;
+  const hasExistingDocument = isEdit ? Boolean(props.defaultDocumentPreviewSrc) : false;
+  const needsDocument = kind === "file";
+  const hasDocument = Boolean(pickedDocumentFile) || hasExistingDocument;
 
   if (!props.canEdit) {
     return <p className="text-sm text-zinc-600">Không có quyền chỉnh sửa.</p>;
   }
+
+  const canSubmit = pending ? false : hasDocument || !needsDocument;
 
   return (
     <form action={formAction} className="mt-2 flex flex-col gap-4">
@@ -87,11 +97,15 @@ export function AppHomeBannerSectionForm(props: Props) {
           required
           disabled={pending}
           value={kind}
-          onChange={(e) => setKind(e.target.value === "webview" ? "webview" : "native")}
+          onChange={(e) => {
+            const v = e.target.value;
+            setKind(v === "webview" ? "webview" : v === "file" ? "file" : "native");
+          }}
           className={fieldClass}
         >
           <option value="native">Màn hình trong app (route cố định)</option>
           <option value="webview">Liên kết web (WebView)</option>
+          <option value="file">Tệp PDF / Word / Excel</option>
         </select>
       </div>
 
@@ -115,7 +129,7 @@ export function AppHomeBannerSectionForm(props: Props) {
             ))}
           </select>
         </div>
-      ) : (
+      ) : kind === "webview" ? (
         <div>
           <label htmlFor="cta-url" className="mb-1 block text-sm font-medium text-zinc-700">
             Liên kết web <span className="text-red-600">*</span>
@@ -130,6 +144,32 @@ export function AppHomeBannerSectionForm(props: Props) {
             className={fieldClass}
             placeholder="https://…"
           />
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-700">
+            Tệp đính kèm <span className="text-red-600">*</span>
+          </label>
+          <FileLocalPickRow
+            id="sec-document-file"
+            name="documentFile"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            disabled={pending}
+            onFileChange={setPickedDocumentFile}
+            title="Upload tài liệu"
+            emptyLabel="Chưa chọn tệp…"
+            buttonLabel="Chọn tệp"
+            existingDisplayName={
+              isEdit && props.defaultDocumentName
+                ? props.defaultDocumentName
+                : isEdit && props.defaultDocumentPreviewSrc
+                  ? "Tệp hiện tại"
+                  : null
+            }
+            existingFileHref={isEdit ? (props.defaultDocumentPreviewSrc ?? undefined) : undefined}
+            existingFileLinkLabel="Mở tệp"
+          />
+          <p className="mt-1 text-xs text-zinc-500">PDF, Word hoặc Excel. Lưu trên Supabase Storage.</p>
         </div>
       )}
 
@@ -171,7 +211,7 @@ export function AppHomeBannerSectionForm(props: Props) {
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={!canSubmit}
         className="w-fit rounded-lg bg-(--portal-primary) px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-(--portal-primary-hover) disabled:opacity-60"
       >
         {pending ? "Đang lưu…" : "Lưu"}

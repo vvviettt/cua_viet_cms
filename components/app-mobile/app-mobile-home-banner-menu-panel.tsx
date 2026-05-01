@@ -58,11 +58,18 @@ function ToggleSwitch({
   );
 }
 
-function KindBadge({ kind, routeId }: { kind: "native" | "webview"; routeId?: string | null }) {
+function KindBadge({ kind, routeId }: { kind: "native" | "webview" | "file"; routeId?: string | null }) {
   if (kind === "native") {
     return (
       <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">
         Native{routeId ? <span className="ml-1 text-sky-700/80">· {routeId}</span> : null}
+      </span>
+    );
+  }
+  if (kind === "file") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+        Tệp
       </span>
     );
   }

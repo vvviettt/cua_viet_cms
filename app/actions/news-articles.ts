@@ -16,7 +16,7 @@ import {
   insertNewsArticle,
   updateNewsArticle,
 } from "@/lib/db/news-articles";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import { removeSupabaseObject, uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 
 const MAX_BANNER_BYTES = 8 * 1024 * 1024;
@@ -183,7 +183,7 @@ export async function createNewsArticleEntry(
 ): Promise<NewsArticleFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm tin." };
+  if (!(await sessionCanEditModule(session, "news"))) return { error: "Bạn không có quyền thêm tin." };
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Vui lòng nhập tiêu đề." };
@@ -231,7 +231,7 @@ export async function updateNewsArticleEntry(
 ): Promise<NewsArticleFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "news"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("articleId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã bài viết không hợp lệ." };
@@ -290,7 +290,7 @@ export async function updateNewsArticleEntry(
 
 export async function deleteNewsArticleFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) {
+  if (!session || !(await sessionCanEditModule(session, "news"))) {
     redirect("/tin-tuc");
   }
 

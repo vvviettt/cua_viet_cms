@@ -5,9 +5,9 @@ import { FeedbackDetailInfo } from "@/components/feedback/feedback-detail-info";
 import { StaffReplyForm } from "@/components/feedback/staff-reply-form";
 import { UpdateFeedbackForm } from "@/components/feedback/update-feedback-form";
 import { getSession } from "@/lib/auth";
+import { canEditCmsModule } from "@/lib/cms-module-access";
 import { SITE } from "@/lib/constants";
 import { findCitizenFeedbackById } from "@/lib/db/citizen-feedback";
-import { canEditContent } from "@/lib/roles";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -27,7 +27,8 @@ export default async function ChiTietPhanAnhPage({ params }: Props) {
   if (!record) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit =
+    session != null && (await canEditCmsModule(session, "citizen_feedback"));
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">

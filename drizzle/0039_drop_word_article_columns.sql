@@ -1,0 +1,9 @@
+ALTER TABLE "app_mobile_home_banner_items" DROP COLUMN IF EXISTS "word_file_id";
+ALTER TABLE "app_mobile_home_banner_items" DROP COLUMN IF EXISTS "article_title";
+ALTER TABLE "app_mobile_home_banner_items" DROP COLUMN IF EXISTS "article_body_json";
+ALTER TABLE "app_mobile_home_banner_sections" DROP COLUMN IF EXISTS "word_file_id";
+ALTER TABLE "app_mobile_home_banner_sections" DROP COLUMN IF EXISTS "article_title";
+ALTER TABLE "app_mobile_home_banner_sections" DROP COLUMN IF EXISTS "article_body_json";
+ALTER TABLE "app_mobile_home_items" DROP COLUMN IF EXISTS "word_file_id";
+ALTER TABLE "app_mobile_home_items" DROP COLUMN IF EXISTS "article_title";
+ALTER TABLE "app_mobile_home_items" DROP COLUMN IF EXISTS "article_body_json";

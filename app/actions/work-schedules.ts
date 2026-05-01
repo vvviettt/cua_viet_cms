@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import type { SessionPayload } from "@/lib/session-cookie";
 import { insertUploadedFile } from "@/lib/db/file-records";
 import { getWorkScheduleTypeById } from "@/lib/db/work-schedule-types";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import { isSchedulePeriodKind, type SchedulePeriodKind } from "@/lib/work-schedules/period";
 import { removeSupabaseObject, uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 import {
@@ -144,7 +144,7 @@ export async function createOrUpdateWorkSchedule(
   if (!session) {
     return { error: "Phiên đăng nhập không hợp lệ." };
   }
-  if (!canEditContent(session.role)) {
+  if (!(await sessionCanEditModule(session, "work_schedule"))) {
     return { error: "Tài khoản của bạn không có quyền tải lên hoặc sửa lịch." };
   }
 

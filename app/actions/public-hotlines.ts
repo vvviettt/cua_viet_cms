@@ -9,7 +9,7 @@ import {
   insertPublicHotline,
   updatePublicHotline,
 } from "@/lib/db/public-hotlines";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,7 +27,7 @@ export async function createPublicHotlineEntry(
 ): Promise<PublicHotlineFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền thêm." };
+  if (!(await sessionCanEditModule(session, "hotline"))) return { error: "Bạn không có quyền thêm." };
 
   const serviceName = String(formData.get("serviceName") ?? "").trim();
   if (!serviceName) return { error: "Vui lòng nhập tên dịch vụ / bộ phận." };
@@ -61,7 +61,7 @@ export async function updatePublicHotlineEntry(
 ): Promise<PublicHotlineFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) return { error: "Bạn không có quyền cập nhật." };
+  if (!(await sessionCanEditModule(session, "hotline"))) return { error: "Bạn không có quyền cập nhật." };
 
   const id = String(formData.get("hotlineId") ?? "").trim();
   if (!id || !UUID_RE.test(id)) return { error: "Mã bản ghi không hợp lệ." };
@@ -99,7 +99,7 @@ export async function updatePublicHotlineEntry(
 /** Form `<form action={…}>` — chữ ký một tham số (không dùng useActionState). */
 export async function deletePublicHotlineFormAction(formData: FormData): Promise<void> {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) {
+  if (!session || !(await sessionCanEditModule(session, "hotline"))) {
     redirect("/duong-day-nong");
   }
 

@@ -8,7 +8,7 @@ import { SITE } from "@/lib/constants";
 import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { findAppMobileBannerById } from "@/lib/db/app-mobile-config";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 type Props = { params: Promise<{ id: string }> };
 const linkErrMessages: Record<string, string> = {
@@ -39,7 +39,7 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
   if (!row) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const src = uploadsPublicHref(row.file.relativePath);
   const sp = await searchParams;
   const linkErrRaw = sp.linkErr;

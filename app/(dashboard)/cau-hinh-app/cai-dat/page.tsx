@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { listAppMobileShellTabsForCms } from "@/lib/db/app-mobile-config";
 import { getAppMobileSettingsForCms, listAppMobileFaqsForCms } from "@/lib/db/app-mobile-settings";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: `Cài đặt — ${SITE.shortTitle}`,
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function CauHinhAppCaiDatPage() {
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const [shellTabsRows, settings, faqs] = await Promise.all([
     listAppMobileShellTabsForCms(),
     getAppMobileSettingsForCms(),

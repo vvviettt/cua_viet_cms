@@ -26,7 +26,7 @@ const TABS: {
   hint: string;
   Icon: typeof Palette;
 }[] = [
-    { id: "appearance", label: "Giao diện", hint: "Màu & tiêu đề hero", Icon: Palette },
+    { id: "appearance", label: "Giao diện", hint: "Màu & tiêu đề", Icon: Palette },
     { id: "catalog", label: "Danh mục", hint: "Nhóm & mục dịch vụ", Icon: LayoutGrid },
     { id: "media", label: "Banner", hint: "Ảnh đầu & giữa trang", Icon: ImageIcon },
   ];
@@ -39,6 +39,7 @@ type Props = {
   defaultHomeBannerSubtitle: string;
   defaultHomeBannerApplyLabel: string;
   defaultHomeBannerLookupLabel: string;
+  defaultHomeBannerDecorationSrc: string | null;
   homeBannerApplySections: AppMobileListHomeBannerSection[];
   homeBannerLookupSections: AppMobileListHomeBannerSection[];
   sections: AppMobileListSection[];
@@ -54,6 +55,7 @@ export function AppTrangChuConfigurator({
   defaultHomeBannerSubtitle,
   defaultHomeBannerApplyLabel,
   defaultHomeBannerLookupLabel,
+  defaultHomeBannerDecorationSrc,
   homeBannerApplySections,
   homeBannerLookupSections,
   sections,
@@ -110,6 +112,7 @@ export function AppTrangChuConfigurator({
               defaultSubtitle={defaultHomeBannerSubtitle}
               defaultApplyLabel={defaultHomeBannerApplyLabel}
               defaultLookupLabel={defaultHomeBannerLookupLabel}
+              defaultDecorationSrc={defaultHomeBannerDecorationSrc}
               applySections={homeBannerApplySections}
               lookupSections={homeBannerLookupSections}
             />

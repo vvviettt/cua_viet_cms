@@ -11,8 +11,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "editor", "viewer"]);
-
 export const fileCategoryEnum = pgEnum("file_category", [
   "work_schedule",
   "document",
@@ -20,12 +18,16 @@ export const fileCategoryEnum = pgEnum("file_category", [
   "news_banner",
   "app_home_banner",
   "app_home_icon",
+  "app_home_menu_document",
 ]);
 
 export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
 
-/** Mục menu trang chủ ứng dụng — native (route cố định trong code) hoặc webview (URL). */
-export const appHomeItemKindEnum = pgEnum("app_home_item_kind", ["native", "webview"]);
+/** Mục menu trang chủ (grid dịch vụ) — native, webview, hoặc file đính kèm. */
+export const appHomeMenuItemKindEnum = pgEnum("app_home_item_kind", ["native", "webview", "file"]);
+
+/** Nhóm / mục trong CTA banner — chỉ native hoặc webview. */
+export const appHomeBannerItemKindEnum = pgEnum("app_home_banner_item_kind", ["native", "webview", "file"]);
 
 /** Vị trí hiển thị ảnh dạng carousel trên trang chủ app. */
 export const appHomeBannerPlacementEnum = pgEnum("app_home_banner_placement", [
@@ -54,11 +56,26 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name"),
-  role: userRoleEnum("role").notNull().default("viewer"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** Quyền theo module CMS (đọc / chỉnh sửa); `is_admin` trên users bỏ qua khi kiểm tra. */
+export const userModulePermissions = pgTable(
+  "user_module_permissions",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    moduleKey: text("module_key").notNull(),
+    canRead: boolean("can_read").notNull().default(false),
+    canEdit: boolean("can_edit").notNull().default(false),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [unique("user_module_permissions_user_module_unique").on(t.userId, t.moduleKey)],
+);
 
 /** Loại lịch (mở rộng sau: thêm dòng trong bảng này). */
 export const workScheduleTypes = pgTable("work_schedule_types", {
@@ -178,11 +195,13 @@ export const appMobileHomeItems = pgTable("app_mobile_home_items", {
   sectionId: uuid("section_id")
     .notNull()
     .references(() => appMobileHomeSections.id, { onDelete: "cascade" }),
-  kind: appHomeItemKindEnum("kind").notNull(),
+  kind: appHomeMenuItemKindEnum("kind").notNull(),
   /** Khi kind=native: mã route trong app (vd. citizen_reception_schedule). */
   routeId: text("route_id"),
   /** Khi kind=webview: URL đầy đủ. */
   webUrl: text("web_url"),
+  /** Khi kind=file: file PDF / Word / Excel (Supabase). */
+  documentFileId: uuid("document_file_id").references(() => files.id, { onDelete: "set null" }),
   label: text("label").notNull(),
   iconKey: text("icon_key").notNull().default("help_outline"),
   iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
@@ -231,6 +250,8 @@ export const appMobileHomeBanner = pgTable("app_mobile_home_banner", {
   subtitle: text("subtitle").notNull().default("CHUYỂN ĐỔI SỐ XÃ CỬA VIỆT"),
   applyLabel: text("apply_label").notNull().default("Nộp hồ sơ trực tuyến"),
   lookupLabel: text("lookup_label").notNull().default("Tra cứu kết quả"),
+  /** Ảnh hoa văn phía dưới vùng đỏ banner (thay asset cố định trên app). */
+  decorationFileId: uuid("decoration_file_id").references(() => files.id, { onDelete: "set null" }),
   updatedAt: text("updated_at").notNull(),
 });
 
@@ -240,11 +261,13 @@ export const appMobileHomeBannerSections = pgTable("app_mobile_home_banner_secti
   ctaKey: appHomeBannerCtaKeyEnum("cta_key").notNull(),
   title: text("title").notNull(),
   iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
-  kind: appHomeItemKindEnum("kind").notNull().default("native"),
+  kind: appHomeBannerItemKindEnum("kind").notNull().default("native"),
   /** Khi kind=native: route trong app. */
   routeId: text("route_id"),
   /** Khi kind=webview: URL đầy đủ. */
   webUrl: text("web_url"),
+  /** Khi kind=file: PDF / Word / Excel (Supabase). */
+  documentFileId: uuid("document_file_id").references(() => files.id, { onDelete: "set null" }),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
@@ -257,7 +280,7 @@ export const appMobileHomeBannerItems = pgTable("app_mobile_home_banner_items", 
   sectionId: uuid("section_id")
     .notNull()
     .references(() => appMobileHomeBannerSections.id, { onDelete: "cascade" }),
-  kind: appHomeItemKindEnum("kind").notNull(),
+  kind: appHomeBannerItemKindEnum("kind").notNull(),
   routeId: text("route_id"),
   webUrl: text("web_url"),
   label: text("label").notNull(),
@@ -364,10 +387,18 @@ export const workSchedules = pgTable(
   ],
 );
 
+export const userModulePermissionsRelations = relations(userModulePermissions, ({ one }) => ({
+  user: one(users, {
+    fields: [userModulePermissions.userId],
+    references: [users.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   uploadedFiles: many(files),
   answeredCitizenFeedback: many(citizenFeedback),
   newsArticlesAuthored: many(newsArticles),
+  modulePermissions: many(userModulePermissions),
 }));
 
 export const workScheduleTypesRelations = relations(workScheduleTypes, ({ many }) => ({

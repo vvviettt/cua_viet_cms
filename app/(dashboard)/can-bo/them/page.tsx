@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CreateStaffForm } from "@/components/staff/create-staff-form";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: "Thêm cán bộ",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function ThemCanBoPage() {
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "staff") : false;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

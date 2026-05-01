@@ -10,7 +10,7 @@ export type AppMobileListItem = {
   id: string;
   sectionId: string;
   label: string;
-  kind: "native" | "webview";
+  kind: "native" | "webview" | "file";
   routeId: string | null;
   webUrl: string | null;
   sortOrder: number;
@@ -38,7 +38,7 @@ export type AppMobileListHomeBannerItem = {
   id: string;
   sectionId: string;
   label: string;
-  kind: "native" | "webview";
+  kind: "native" | "webview" | "file";
   routeId: string | null;
   webUrl: string | null;
   sortOrder: number;
@@ -49,7 +49,7 @@ export type AppMobileListHomeBannerSection = {
   id: string;
   ctaKey: "apply_online" | "lookup_result";
   title: string;
-  kind: "native" | "webview";
+  kind: "native" | "webview" | "file";
   routeId: string | null;
   webUrl: string | null;
   sortOrder: number;

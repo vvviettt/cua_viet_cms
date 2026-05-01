@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { canManageUsers } from "@/lib/roles";
@@ -14,10 +13,7 @@ export const metadata: Metadata = {
 
 export default async function NguoiDungPage() {
   const session = await getSession();
-  if (!session || !canManageUsers(session.role)) {
-    redirect("/");
-  }
-
+  const canToggle = session != null && canManageUsers(session.isAdmin);
   const items = await listCitizenAccounts();
 
   return (
@@ -34,7 +30,7 @@ export default async function NguoiDungPage() {
           Tài khoản ứng dụng
         </h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Danh sách tài khoản người dân đăng nhập app. Chỉ quản trị viên mới có quyền bật/tắt.
+          Danh sách tài khoản người dân đăng nhập app. Bật/tắt: quản trị viên.
         </p>
       </header>
 
@@ -74,7 +70,11 @@ export default async function NguoiDungPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <ToggleCitizenActiveForm citizenAccountId={u.id} isActive={u.isActive} />
+                    {canToggle ? (
+                      <ToggleCitizenActiveForm citizenAccountId={u.id} isActive={u.isActive} />
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))

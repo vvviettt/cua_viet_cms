@@ -4,7 +4,7 @@ import { AppMobileShellTabsPanel, AppMobileShellTabVisibleToggle } from "@/compo
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { listAppMobileShellTabsForCms } from "@/lib/db/app-mobile-config";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: `Trợ lý ảo — ${SITE.shortTitle}`,
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function CauHinhAppTroLyAoPage() {
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
   const shellTabsRows = await listAppMobileShellTabsForCms();
 
   const listShellTabs = shellTabsRows.map((t) => ({

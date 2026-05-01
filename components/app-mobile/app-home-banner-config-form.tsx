@@ -8,6 +8,7 @@ import {
 import { AppMobileHomeBannerMenuPanel } from "@/components/app-mobile/app-mobile-home-banner-menu-panel";
 import type { AppMobileListHomeBannerSection } from "@/components/app-mobile/app-mobile-config-types";
 import { Button } from "@/components/ui/button";
+import { FileLocalPickRow } from "@/components/ui/file-source-picker";
 import { InputField } from "@/components/ui/input";
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
   defaultSubtitle: string;
   defaultApplyLabel: string;
   defaultLookupLabel: string;
+  defaultDecorationSrc: string | null;
   applySections: AppMobileListHomeBannerSection[];
   lookupSections: AppMobileListHomeBannerSection[];
 };
@@ -28,6 +30,7 @@ export function AppHomeBannerConfigForm({
   defaultSubtitle,
   defaultApplyLabel,
   defaultLookupLabel,
+  defaultDecorationSrc,
   applySections,
   lookupSections,
 }: Props) {
@@ -44,10 +47,13 @@ export function AppHomeBannerConfigForm({
     <section className="space-y-6">
       <div className="border-b border-slate-200 pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Banner đầu trang</h3>
-        <p className="mt-1 text-sm text-slate-500">Thiết lập 2 dòng tiêu đề và nhãn cho 2 nút.</p>
       </div>
 
-      <form action={formAction} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <form
+        action={formAction}
+        encType="multipart/form-data"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
         {state?.error ? (
           <p
             className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
@@ -61,6 +67,36 @@ export function AppHomeBannerConfigForm({
             Đã lưu.
           </p>
         ) : null}
+
+        <div className="mb-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+          <FileLocalPickRow
+            name="decoration"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            disabled={!canEdit || pending}
+            title="Ảnh hoa văn dưới banner"
+            emptyLabel="Chưa chọn ảnh mới…"
+            buttonLabel="Chọn ảnh"
+            existingFileHref={defaultDecorationSrc ?? undefined}
+            existingDisplayName={defaultDecorationSrc ? "Ảnh đang dùng" : undefined}
+          />
+          {defaultDecorationSrc ? (
+            <label
+              className={[
+                "flex cursor-pointer items-center gap-2 text-sm text-slate-600 transition-all duration-200",
+                !canEdit || pending ? "cursor-not-allowed opacity-50" : "active:scale-95",
+              ].join(" ")}
+            >
+              <input
+                type="checkbox"
+                name="clearDecoration"
+                value="1"
+                disabled={!canEdit || pending}
+                className="size-4 cursor-pointer rounded border-slate-300 accent-(--portal-primary) disabled:cursor-not-allowed"
+              />
+              Dùng ảnh mặc định app
+            </label>
+          ) : null}
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <InputField
@@ -116,7 +152,7 @@ export function AppHomeBannerConfigForm({
                 tab === "apply" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900",
               ].join(" ")}
             >
-              Nút 1 · Nộp hồ sơ
+              Nút 1
             </button>
             <button
               type="button"
@@ -126,7 +162,7 @@ export function AppHomeBannerConfigForm({
                 tab === "lookup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900",
               ].join(" ")}
             >
-              Nút 2 · Tra cứu
+              Nút 2
             </button>
           </div>
         </div>

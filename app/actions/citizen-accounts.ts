@@ -18,7 +18,7 @@ export async function toggleCitizenAccountActive(
   if (!session) {
     return { error: "Phiên đăng nhập không hợp lệ." };
   }
-  if (!canManageUsers(session.role)) {
+  if (!canManageUsers(session.isAdmin)) {
     return { error: "Tài khoản của bạn không có quyền quản lý tài khoản ứng dụng." };
   }
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Heart, Pencil, Trash2 } from "lucide-react";
 import {
   deleteAppMobileItemFormAction,
   deleteAppMobileSectionFormAction,
@@ -60,11 +60,18 @@ function ToggleSwitch({
   );
 }
 
-function KindBadge({ kind, routeId }: { kind: "native" | "webview"; routeId?: string | null }) {
+function KindBadge({ kind, routeId }: { kind: "native" | "webview" | "file"; routeId?: string | null }) {
   if (kind === "native") {
     return (
       <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">
         Native{routeId ? <span className="ml-1 text-sky-700/80">· {routeId}</span> : null}
+      </span>
+    );
+  }
+  if (kind === "file") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+        Tệp đính kèm
       </span>
     );
   }
@@ -234,15 +241,28 @@ export function AppMobileMenuPanel({ canEdit, sections, embedded = false }: Prop
                         ) : null}
 
                         {canEdit ? (
-                          <div className="flex items-center gap-2">
-                            <ToggleSwitch
-                              checked={it.isDefaultFavorite}
-                              disabled={!canEdit || pending}
-                              onChange={(next) => run(() => setAppMobileItemDefaultFavoriteServer(it.id, next))}
-                              label="Đặt làm tiện ích yêu thích mặc định"
-                            />
-                            <span className="text-xs text-zinc-600">Yêu thích mặc định</span>
-                          </div>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() =>
+                              run(() =>
+                                setAppMobileItemDefaultFavoriteServer(it.id, !it.isDefaultFavorite),
+                              )
+                            }
+                            title={it.isDefaultFavorite ? "Bỏ mặc định" : "Yêu thích mặc định"}
+                            aria-label={it.isDefaultFavorite ? "Bỏ mặc định" : "Yêu thích mặc định"}
+                            aria-pressed={it.isDefaultFavorite}
+                            className={[
+                              "inline-flex items-center justify-center rounded-md p-1.5 transition-all duration-200",
+                              it.isDefaultFavorite ? "text-red-600" : "text-zinc-400",
+                              pending
+                                ? "cursor-not-allowed opacity-50"
+                                : "cursor-pointer active:scale-95 hover:text-red-500",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--portal-primary) focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                            ].join(" ")}
+                          >
+                            <Heart className="size-5" fill={it.isDefaultFavorite ? "currentColor" : "none"} strokeWidth={1.75} />
+                          </button>
                         ) : null}
 
                         <ToggleSwitch

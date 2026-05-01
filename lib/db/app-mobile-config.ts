@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   appMobileBanners,
@@ -14,6 +14,8 @@ import {
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { listNewsArticlesVisiblePublicPaged } from "@/lib/db/news-articles";
 import { ensureAppMobileSettingsRow, listAppMobileFaqsPublic } from "@/lib/db/app-mobile-settings";
+
+type FileRow = typeof files.$inferSelect;
 
 export type AppMobileThemeRow = typeof appMobileTheme.$inferSelect;
 export type AppMobileSectionRow = typeof appMobileHomeSections.$inferSelect;
@@ -121,9 +123,10 @@ export async function insertAppMobileHomeBannerSection(values: {
   ctaKey: AppHomeBannerCtaKey;
   title: string;
   iconFileId?: string | null;
-  kind: "native" | "webview";
+  kind: "native" | "webview" | "file";
   routeId: string | null;
   webUrl: string | null;
+  documentFileId?: string | null;
   sortOrder: number;
   isActive: boolean;
 }): Promise<string> {
@@ -137,6 +140,7 @@ export async function insertAppMobileHomeBannerSection(values: {
       kind: values.kind,
       routeId: values.routeId,
       webUrl: values.webUrl,
+      documentFileId: values.documentFileId ?? null,
       sortOrder: values.sortOrder,
       isActive: values.isActive,
       createdAt: now,
@@ -149,7 +153,14 @@ export async function insertAppMobileHomeBannerSection(values: {
 
 export async function updateAppMobileHomeBannerSectionTitle(
   id: string,
-  values: { title: string; iconFileId: string | null; kind: "native" | "webview"; routeId: string | null; webUrl: string | null },
+  values: {
+    title: string;
+    iconFileId: string | null;
+    kind: "native" | "webview" | "file";
+    routeId: string | null;
+    webUrl: string | null;
+    documentFileId: string | null;
+  },
 ): Promise<void> {
   const now = new Date().toISOString();
   await getDb()
@@ -160,6 +171,7 @@ export async function updateAppMobileHomeBannerSectionTitle(
       kind: values.kind,
       routeId: values.routeId,
       webUrl: values.webUrl,
+      documentFileId: values.documentFileId,
       updatedAt: now,
     })
     .where(eq(appMobileHomeBannerSections.id, id));
@@ -324,6 +336,8 @@ export async function updateAppMobileHomeBanner(values: {
   subtitle: string;
   applyLabel: string;
   lookupLabel: string;
+  /** undefined = giữ nguyên cột decoration. */
+  decorationFileId?: string | null;
 }): Promise<void> {
   const row = await ensureAppMobileHomeBannerRow();
   const now = new Date().toISOString();
@@ -334,6 +348,7 @@ export async function updateAppMobileHomeBanner(values: {
       subtitle: values.subtitle,
       applyLabel: values.applyLabel,
       lookupLabel: values.lookupLabel,
+      ...(values.decorationFileId !== undefined ? { decorationFileId: values.decorationFileId } : {}),
       updatedAt: now,
     })
     .where(eq(appMobileHomeBanner.id, row.id));
@@ -654,9 +669,10 @@ export async function deleteAppMobileSection(id: string): Promise<void> {
 
 export async function insertAppMobileItem(values: {
   sectionId: string;
-  kind: "native" | "webview";
+  kind: "native" | "webview" | "file";
   routeId: string | null;
   webUrl: string | null;
+  documentFileId: string | null;
   label: string;
   iconKey: string;
   iconFileId: string | null;
@@ -672,6 +688,7 @@ export async function insertAppMobileItem(values: {
       kind: values.kind,
       routeId: values.routeId,
       webUrl: values.webUrl,
+      documentFileId: values.documentFileId,
       label: values.label,
       iconKey: values.iconKey,
       iconFileId: values.iconFileId,
@@ -690,9 +707,10 @@ export async function insertAppMobileItem(values: {
 export async function updateAppMobileItemContent(
   id: string,
   values: {
-    kind: "native" | "webview";
+    kind: "native" | "webview" | "file";
     routeId: string | null;
     webUrl: string | null;
+    documentFileId: string | null;
     label: string;
     iconKey: string;
     iconFileId: string | null;
@@ -706,6 +724,7 @@ export async function updateAppMobileItemContent(
       kind: values.kind,
       routeId: values.routeId,
       webUrl: values.webUrl,
+      documentFileId: values.documentFileId,
       label: values.label,
       iconKey: values.iconKey,
       iconFileId: values.iconFileId,
@@ -817,9 +836,11 @@ export type PublicAppMobileBanner = {
 
 export type PublicAppMobileItem = {
   id: string;
-  kind: "native" | "webview";
+  kind: "native" | "webview" | "file";
   routeId: string | null;
   webUrl: string | null;
+  /** URL công khai khi kind=file (PDF / Word / Excel). */
+  fileUrl: string | null;
   label: string;
   iconKey: string;
   iconImagePath: string | null;
@@ -863,6 +884,8 @@ export type PublicAppMobileConfig = {
   homeBanner: {
     title: string;
     subtitle: string;
+    /** URL ảnh hoa văn dưới banner; null → app dùng asset cố định. */
+    decorationImageUrl: string | null;
     ctas: Array<{
       key: AppHomeBannerCtaKey;
       label: string;
@@ -962,6 +985,17 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
   await ensureAppMobileShellTabsSeeded();
   const themeRow = await getAppMobileThemeRow();
   const homeBannerRow = await ensureAppMobileHomeBannerRow();
+  let homeBannerDecorationImageUrl: string | null = null;
+  if (homeBannerRow.decorationFileId) {
+    const [decoFile] = await getDb()
+      .select({ relativePath: files.relativePath })
+      .from(files)
+      .where(eq(files.id, homeBannerRow.decorationFileId))
+      .limit(1);
+    if (decoFile?.relativePath) {
+      homeBannerDecorationImageUrl = uploadsPublicHref(decoFile.relativePath);
+    }
+  }
   const settingsRow = await ensureAppMobileSettingsRow();
   const faqsRows = await listAppMobileFaqsPublic();
   const themeDefaults = {
@@ -990,6 +1024,19 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     .leftJoin(files, eq(appMobileHomeItems.iconFileId, files.id))
     .where(eq(appMobileHomeItems.isActive, true))
     .orderBy(asc(appMobileHomeItems.sortOrder), asc(appMobileHomeItems.label));
+
+  const documentIds = itemRows
+    .map(({ item: it }) => it.documentFileId)
+    .filter((id): id is string => Boolean(id));
+  const docFileById = new Map<string, FileRow>();
+  if (documentIds.length > 0) {
+    const uniq = [...new Set(documentIds)];
+    const docRows = await getDb()
+      .select()
+      .from(files)
+      .where(inArray(files.id, uniq));
+    for (const d of docRows) docFileById.set(d.id, d);
+  }
 
   const bannerTopJoin = await getDb()
     .select({
@@ -1021,6 +1068,19 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     .leftJoin(files, eq(appMobileHomeBannerSections.iconFileId, files.id))
     .where(eq(appMobileHomeBannerSections.isActive, true))
     .orderBy(asc(appMobileHomeBannerSections.ctaKey), asc(appMobileHomeBannerSections.sortOrder), asc(appMobileHomeBannerSections.title));
+
+  const ctaSectionDocIds = ctaSectionsRows
+    .map(({ section: s }) => s.documentFileId)
+    .filter((id): id is string => Boolean(id));
+  const ctaSectionDocById = new Map<string, FileRow>();
+  if (ctaSectionDocIds.length > 0) {
+    const uniq = [...new Set(ctaSectionDocIds)];
+    const docRows = await getDb()
+      .select()
+      .from(files)
+      .where(inArray(files.id, uniq));
+    for (const d of docRows) ctaSectionDocById.set(d.id, d);
+  }
 
   const ctaItemRows = await getDb()
     .select({
@@ -1055,8 +1115,10 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       id: string;
       label: string;
       icon: string | null;
+      kind: "native" | "webview" | "file";
       url?: string | null;
       routePath?: string | null;
+      fileUrl?: string | null;
       sortOrder: number;
       children: Array<{
         id: string;
@@ -1075,17 +1137,27 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       return c !== 0 ? c : a.label.localeCompare(b.label, "vi");
     });
     const list = ctaSectionsByKey.get(s.ctaKey as AppHomeBannerCtaKey) ?? [];
-    const sectionLink =
-      s.kind === "webview"
-        ? { url: s.webUrl ?? null, routePath: null }
-        : { url: null, routePath: s.routeId ?? null };
+    let url: string | null = null;
+    let routePath: string | null = null;
+    let fileUrl: string | null = null;
+    const kind = s.kind;
+    if (s.kind === "webview") {
+      url = s.webUrl ?? null;
+    } else if (s.kind === "file") {
+      const doc = s.documentFileId ? ctaSectionDocById.get(s.documentFileId) : undefined;
+      fileUrl = doc?.relativePath ? uploadsPublicHref(doc.relativePath) : null;
+    } else {
+      routePath = s.routeId ?? null;
+    }
 
     list.push({
       id: s.id,
       label: s.title,
       icon: iconImageUrl,
-      url: sectionLink.url,
-      routePath: sectionLink.routePath,
+      kind,
+      url,
+      routePath,
+      fileUrl,
       sortOrder: s.sortOrder,
       children: children.map(({ id, label, icon, url, routePath }) => ({ id, label, icon, url, routePath })),
     });
@@ -1101,11 +1173,15 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     if (!list) continue;
     const iconImagePath = iconFile?.relativePath ? uploadsPublicHref(iconFile.relativePath) : null;
     const iconImageUrl = iconImagePath;
+    const docRow = it.documentFileId ? docFileById.get(it.documentFileId) : undefined;
+    const fileUrl =
+      it.kind === "file" && docRow?.relativePath ? uploadsPublicHref(docRow.relativePath) : null;
     list.push({
       id: it.id,
       kind: it.kind,
       routeId: it.routeId,
       webUrl: it.webUrl,
+      fileUrl,
       label: it.label,
       iconKey: it.iconKey,
       iconImagePath,
@@ -1190,6 +1266,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     homeBanner: {
       title: homeBannerRow.title,
       subtitle: homeBannerRow.subtitle,
+      decorationImageUrl: homeBannerDecorationImageUrl,
       ctas: [
         {
           key: "apply_online",
@@ -1221,6 +1298,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
 
 function mapItemLink(it: PublicAppMobileItem): { url: string | null; routePath: string | null } {
   if (it.kind === "webview") return { url: it.webUrl ?? null, routePath: null };
+  if (it.kind === "file") return { url: null, routePath: null };
   return { url: null, routePath: it.routeId ?? null };
 }
 
@@ -1255,6 +1333,8 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
         icon: it.iconImageUrl ?? null,
         url: link.url,
         routePath: link.routePath,
+        kind: it.kind,
+        fileUrl: it.fileUrl ?? null,
       };
     }),
   }));
@@ -1294,13 +1374,22 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
           icon: it.iconImageUrl ?? null,
           url: link.url,
           routePath: link.routePath,
+          kind: it.kind,
+          fileUrl: it.fileUrl ?? null,
         },
       ] as const;
     }),
   );
 
-  const picked: Array<{ id: string; label: string; icon: string | null; url: string | null; routePath: string | null }> =
-    [];
+  const picked: Array<{
+    id: string;
+    label: string;
+    icon: string | null;
+    url: string | null;
+    routePath: string | null;
+    kind: PublicAppMobileItem["kind"];
+    fileUrl: string | null;
+  }> = [];
   const seen = new Set<string>();
   for (const id of favoriteIds) {
     if (seen.has(id)) continue;

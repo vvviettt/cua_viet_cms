@@ -8,7 +8,7 @@ import {
   updateCitizenFeedbackAdminFields,
   updateCitizenFeedbackStaffReply,
 } from "@/lib/db/citizen-feedback";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,7 +27,7 @@ export async function updateCitizenFeedbackEntry(
 ): Promise<CitizenFeedbackFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) {
+  if (!(await sessionCanEditModule(session, "citizen_feedback"))) {
     return { error: "Bạn không có quyền cập nhật." };
   }
 
@@ -73,7 +73,7 @@ export async function saveCitizenFeedbackStaffReply(
 ): Promise<CitizenFeedbackFormState> {
   const session = await getSession();
   if (!session) return { error: "Phiên đăng nhập không hợp lệ." };
-  if (!canEditContent(session.role)) {
+  if (!(await sessionCanEditModule(session, "citizen_feedback"))) {
     return { error: "Bạn không có quyền gửi trả lời." };
   }
 

@@ -15,6 +15,8 @@ const fieldClass =
 
 const initial: AppMobileFormState = {};
 
+type ItemKind = "native" | "webview" | "file";
+
 type CreateProps = {
   mode: "create";
   canEdit: boolean;
@@ -25,12 +27,14 @@ type EditProps = {
   mode: "edit";
   canEdit: boolean;
   itemId: string;
-  defaultKind: "native" | "webview";
+  defaultKind: ItemKind;
   defaultRouteId: string;
   defaultWebUrl: string;
   defaultLabel: string;
   defaultIconKey: string;
   defaultIconPreviewSrc?: string;
+  defaultDocumentPreviewSrc?: string;
+  defaultDocumentName?: string;
 };
 
 type Props = CreateProps | EditProps;
@@ -41,15 +45,19 @@ export function AppItemForm(props: Props) {
   const [state, formAction, pending] = useActionState(action, initial);
 
   const isEdit = props.mode === "edit";
-  const initialKind: "native" | "webview" = isEdit ? props.defaultKind : "native";
-  const [kind, setKind] = useState<"native" | "webview">(initialKind);
+  const initialKind: ItemKind = isEdit ? props.defaultKind : "native";
+  const [kind, setKind] = useState<ItemKind>(initialKind);
   const initialUseCustomIcon = isEdit ? Boolean(props.defaultIconPreviewSrc) : false;
   const [useCustomIcon, setUseCustomIcon] = useState<boolean>(initialUseCustomIcon);
   const [pickedIconFile, setPickedIconFile] = useState<File | null>(null);
+  const [pickedDocumentFile, setPickedDocumentFile] = useState<File | null>(null);
 
   const hasExistingIcon = isEdit ? Boolean(props.defaultIconPreviewSrc) : false;
   const hasIcon = Boolean(pickedIconFile) || hasExistingIcon;
-  const canSubmit = pending ? false : hasIcon;
+  const hasExistingDocument = isEdit ? Boolean(props.defaultDocumentPreviewSrc) : false;
+  const needsDocument = kind === "file";
+  const hasDocument = Boolean(pickedDocumentFile) || hasExistingDocument;
+  const canSubmit = pending ? false : hasIcon && (!needsDocument || hasDocument);
 
   useEffect(() => {
     if (!state?.ok) return;
@@ -71,8 +79,6 @@ export function AppItemForm(props: Props) {
         </p>
       ) : null}
 
-      
-
       <div>
         <label htmlFor="item-kind" className="mb-1 block text-sm font-medium text-zinc-700">
           Loại
@@ -83,11 +89,15 @@ export function AppItemForm(props: Props) {
           required
           disabled={pending}
           value={kind}
-          onChange={(e) => setKind(e.target.value === "webview" ? "webview" : "native")}
+          onChange={(e) => {
+            const v = e.target.value;
+            setKind(v === "webview" ? "webview" : v === "file" ? "file" : "native");
+          }}
           className={fieldClass}
         >
-          <option value="native">Màn hình trong app (route cố định)</option>
-          <option value="webview">Liên kết web (WebView)</option>
+          <option value="native">Màn hình trong app</option>
+          <option value="webview">Liên kết web</option>
+          <option value="file">Tệp PDF / Word / Excel</option>
         </select>
       </div>
 
@@ -112,7 +122,7 @@ export function AppItemForm(props: Props) {
           </select>
           <p className="mt-1 text-xs text-zinc-500">Chọn màn hình có sẵn trong ứng dụng.</p>
         </div>
-      ) : (
+      ) : kind === "webview" ? (
         <div>
           <label htmlFor="item-url" className="mb-1 block text-sm font-medium text-zinc-700">
             Liên kết web <span className="text-red-600">*</span>
@@ -128,6 +138,28 @@ export function AppItemForm(props: Props) {
             placeholder="https://…"
           />
           <p className="mt-1 text-xs text-zinc-500">URL đầy đủ, mở trong WebView trong app.</p>
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-700">
+            Tệp đính kèm <span className="text-red-600">*</span>
+          </label>
+          <FileLocalPickRow
+            id="item-document-file"
+            name="documentFile"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            disabled={pending}
+            onFileChange={setPickedDocumentFile}
+            title="Upload tài liệu"
+            emptyLabel="Chưa chọn tệp…"
+            buttonLabel="Chọn tệp"
+            existingDisplayName={
+              isEdit && props.defaultDocumentName ? props.defaultDocumentName : isEdit && props.defaultDocumentPreviewSrc ? "Tệp hiện tại" : null
+            }
+            existingFileHref={isEdit ? props.defaultDocumentPreviewSrc : undefined}
+            existingFileLinkLabel="Mở tệp"
+          />
+          <p className="mt-1 text-xs text-zinc-500">PDF, Word hoặc Excel. Tối đa 25MB. Lưu trên Supabase Storage.</p>
         </div>
       )}
 
@@ -150,43 +182,38 @@ export function AppItemForm(props: Props) {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-zinc-700">Biểu tượng <span className="text-red-600">*</span></p>
-            
+            <p className="text-sm font-medium text-zinc-700">
+              Biểu tượng <span className="text-red-600">*</span>
+            </p>
           </div>
-          
         </div>
 
         <input type="hidden" name="useCustomIcon" value={useCustomIcon ? "true" : "false"} />
 
-          <div className="mt-3">
-            <input type="hidden" name="iconKey" value="help_outline" />
-            <FileLocalPickRow
-              id="item-icon-file"
-              name="iconFile"
-              accept="image/svg+xml,.svg"
-              disabled={pending}
-              onFileChange={(f) => {
-                setPickedIconFile(f);
-                if (f) setUseCustomIcon(true);
-              }}
-              title="Upload icon SVG"
-              emptyLabel="Chưa chọn icon SVG…"
-              buttonLabel="Chọn icon"
-              existingDisplayName={isEdit && props.defaultIconPreviewSrc ? "Icon SVG hiện tại" : null}
-              existingFileHref={isEdit ? props.defaultIconPreviewSrc : undefined}
-              existingFileLinkLabel="Xem SVG"
-            />
-            <p className="mt-1 text-xs text-zinc-500">Chỉ nhận SVG. Tối đa 512KB.</p>
-            {!hasIcon ? (
-              <p className="mt-2 text-xs font-medium text-red-700">
-                Vui lòng chọn icon SVG trước khi lưu.
-              </p>
-            ) : null}
-          </div>
-        
+        <div className="mt-3">
+          <input type="hidden" name="iconKey" value="help_outline" />
+          <FileLocalPickRow
+            id="item-icon-file"
+            name="iconFile"
+            accept="image/svg+xml,.svg"
+            disabled={pending}
+            onFileChange={(f) => {
+              setPickedIconFile(f);
+              if (f) setUseCustomIcon(true);
+            }}
+            title="Upload icon SVG"
+            emptyLabel="Chưa chọn icon SVG…"
+            buttonLabel="Chọn icon"
+            existingDisplayName={isEdit && props.defaultIconPreviewSrc ? "Icon SVG hiện tại" : null}
+            existingFileHref={isEdit ? props.defaultIconPreviewSrc : undefined}
+            existingFileLinkLabel="Xem SVG"
+          />
+          <p className="mt-1 text-xs text-zinc-500">Chỉ nhận SVG. Tối đa 512KB.</p>
+          {!hasIcon ? (
+            <p className="mt-2 text-xs font-medium text-red-700">Chọn icon SVG trước khi lưu.</p>
+          ) : null}
+        </div>
       </div>
-
-     
 
       <button
         type="submit"

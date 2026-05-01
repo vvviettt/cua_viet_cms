@@ -7,7 +7,7 @@ import {
   MAX_CONTENT_IMAGE_BYTES,
   persistContentImageBuffer,
 } from "@/lib/news/save-content-image";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 /** Định dạng trả về cho @editorjs/image */
 function okBody(url: string) {
@@ -25,7 +25,7 @@ function fail(status: number) {
  */
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || !canEditContent(session.role)) {
+  if (!session || !(await sessionCanEditModule(session, "news"))) {
     return fail(401);
   }
 

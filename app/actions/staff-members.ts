@@ -11,7 +11,7 @@ import {
   insertStaffMember,
   updateStaffMemberById,
 } from "@/lib/db/staff-members";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const RELATIVE_PREFIX = "can-bo";
@@ -170,7 +170,7 @@ export async function createStaffMember(
   if (!session) {
     return { error: "Phiên đăng nhập không hợp lệ." };
   }
-  if (!canEditContent(session.role)) {
+  if (!(await sessionCanEditModule(session, "staff"))) {
     return { error: "Tài khoản của bạn không có quyền thêm cán bộ." };
   }
 
@@ -225,7 +225,7 @@ export async function updateStaffMember(
   if (!session) {
     return { error: "Phiên đăng nhập không hợp lệ." };
   }
-  if (!canEditContent(session.role)) {
+  if (!(await sessionCanEditModule(session, "staff"))) {
     return { error: "Tài khoản của bạn không có quyền sửa cán bộ." };
   }
 

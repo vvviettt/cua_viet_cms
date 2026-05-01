@@ -2,8 +2,6 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { logout } from "@/app/actions/auth";
-import { ROLE_LABELS } from "@/lib/roles";
-
 const nav = [
   { href: "/", label: "Bảng điều khiển" },
 ];
@@ -12,7 +10,7 @@ export async function SiteHeader() {
   const session = await getSession();
 
   return (
-    <header className="border-b border-[var(--portal-border)] bg-[var(--portal-header)] text-white shadow-md">
+    <header className="border-b border-(--portal-border) bg-(--portal-header) text-white shadow-md">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         <Link href="/" className="group flex gap-3 sm:min-w-0 sm:flex-1">
           <span
@@ -50,7 +48,9 @@ export async function SiteHeader() {
             <>
               <span className="max-w-[220px] truncate text-sm text-white/90 sm:max-w-[280px]">
                 <span className="block truncate font-medium">{session.name ?? session.email}</span>
-                <span className="block truncate text-xs text-white/70">{ROLE_LABELS[session.role]}</span>
+                <span className="block truncate text-xs text-white/70">
+                  {session.isAdmin ? "Quản trị viên" : "CMS"}
+                </span>
               </span>
               <form action={logout}>
                 <button

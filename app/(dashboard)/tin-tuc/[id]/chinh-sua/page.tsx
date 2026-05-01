@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { listNewsArticleCategories } from "@/lib/db/news-article-categories";
 import { findNewsArticleById } from "@/lib/db/news-articles";
-import { canEditContent } from "@/lib/roles";
+import { sessionCanEditModule } from "@/lib/cms-module-access";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 
 type Props = {
@@ -28,7 +28,7 @@ export default async function ChinhSuaTinTucPage({ params }: Props) {
   if (!row) notFound();
 
   const session = await getSession();
-  const canEdit = session ? canEditContent(session.role) : false;
+  const canEdit = session ? await sessionCanEditModule(session, "news") : false;
   const categoryRows = await listNewsArticleCategories();
   const categories = categoryRows.map((c) => ({ id: c.id, title: c.title }));
   const bannerPreviewSrc = uploadsPublicHref(row.bannerRelativePath);
