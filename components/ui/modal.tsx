@@ -9,9 +9,18 @@ type ModalProps = {
   children: React.ReactNode;
   /** Giới hạn chiều rộng nội dung modal. */
   maxWidthClassName?: string;
+  /** Vùng nội dung cuộn được (form dài, chi tiết user). */
+  bodyClassName?: string;
 };
 
-export function Modal({ open, onClose, title, children, maxWidthClassName = "max-w-2xl" }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  maxWidthClassName = "max-w-2xl",
+  bodyClassName = "max-h-[min(80vh,920px)] overflow-y-auto px-5 py-5",
+}: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement | null>(null);
 
@@ -67,7 +76,7 @@ export function Modal({ open, onClose, title, children, maxWidthClassName = "max
               Đóng
             </button>
           </div>
-          <div className="px-5 py-5">{children}</div>
+          <div className={bodyClassName}>{children}</div>
         </div>
       </div>
     </div>

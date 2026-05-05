@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   saveUserModulePermissions,
@@ -29,6 +30,7 @@ function levelsFromRows(rows: Row[]): Record<CmsModuleKey, Level> {
 }
 
 export function UserModulePermissionsForm(props: { userId: string; permissionsJson: string }) {
+  const router = useRouter();
   const initialRows = useMemo(() => {
     return JSON.parse(props.permissionsJson) as Row[];
   }, [props.permissionsJson]);
@@ -39,6 +41,12 @@ export function UserModulePermissionsForm(props: { userId: string; permissionsJs
   useEffect(() => {
     setLevels(levelsFromRows(initialRows));
   }, [initialRows]);
+
+  useEffect(() => {
+    if (state.ok) {
+      router.refresh();
+    }
+  }, [state.ok, router]);
 
   const choices: { value: Level; label: string }[] = [
     { value: "none", label: "Không" },

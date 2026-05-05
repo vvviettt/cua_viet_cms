@@ -60,8 +60,8 @@ const MODULES: HomeModule[] = [
     moduleKey: "user_management",
   },
   {
-    title: "Phân quyền",
-    desc: "Phân quyền người dùng vào các module và chức năng.",
+    title: "Người dùng CMS & phân quyền",
+    desc: "Tài khoản CMS, vai trò quản trị viên, và quyền từng module.",
     href: "/phan-quyen",
     adminOnly: true,
   },

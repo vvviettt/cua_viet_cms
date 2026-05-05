@@ -59,5 +59,6 @@ export async function saveUserModulePermissions(
   }
 
   revalidatePath("/phan-quyen");
+  revalidatePath(`/phan-quyen/${userId}`);
   return { ok: true };
 }
