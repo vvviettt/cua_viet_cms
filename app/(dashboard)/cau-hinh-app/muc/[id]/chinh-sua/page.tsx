@@ -50,6 +50,8 @@ export default async function ChinhSuaMucMenuPage({ params }: Props) {
           defaultRouteId={it.routeId ?? "none"}
           defaultWebUrl={it.webUrl ?? ""}
           defaultLabel={it.label}
+          defaultArticleTitle={it.kind === "article" ? (it.articleTitle ?? it.label) : ""}
+          defaultArticleBodyJson={it.articleBodyJson ?? '{"blocks":[]}'}
           defaultIconKey={it.iconKey}
           defaultIconPreviewSrc={iconPreview}
           defaultDocumentPreviewSrc={documentPreview}

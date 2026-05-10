@@ -24,7 +24,12 @@ export const fileCategoryEnum = pgEnum("file_category", [
 export const schedulePeriodKindEnum = pgEnum("schedule_period_kind", ["week", "month", "year"]);
 
 /** Mục menu trang chủ (grid dịch vụ) — native, webview, hoặc file đính kèm. */
-export const appHomeMenuItemKindEnum = pgEnum("app_home_item_kind", ["native", "webview", "file"]);
+export const appHomeMenuItemKindEnum = pgEnum("app_home_item_kind", [
+  "native",
+  "webview",
+  "file",
+  "article",
+]);
 
 /** Nhóm / mục trong CTA banner — chỉ native hoặc webview. */
 export const appHomeBannerItemKindEnum = pgEnum("app_home_banner_item_kind", ["native", "webview", "file"]);
@@ -202,6 +207,10 @@ export const appMobileHomeItems = pgTable("app_mobile_home_items", {
   webUrl: text("web_url"),
   /** Khi kind=file: file PDF / Word / Excel (Supabase). */
   documentFileId: uuid("document_file_id").references(() => files.id, { onDelete: "set null" }),
+  /** Khi kind=article: tiêu đề màn bài viết (có thể dài hơn nhãn lưới). */
+  articleTitle: text("article_title"),
+  /** Khi kind=article: nội dung EditorJS (JSON string). */
+  articleBodyJson: text("article_body_json").notNull().default('{"blocks":[]}'),
   label: text("label").notNull(),
   iconKey: text("icon_key").notNull().default("help_outline"),
   iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),

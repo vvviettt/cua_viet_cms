@@ -60,7 +60,7 @@ function ToggleSwitch({
   );
 }
 
-function KindBadge({ kind, routeId }: { kind: "native" | "webview" | "file"; routeId?: string | null }) {
+function KindBadge({ kind, routeId }: { kind: "native" | "webview" | "file" | "article"; routeId?: string | null }) {
   if (kind === "native") {
     return (
       <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">
@@ -72,6 +72,13 @@ function KindBadge({ kind, routeId }: { kind: "native" | "webview" | "file"; rou
     return (
       <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
         Tệp đính kèm
+      </span>
+    );
+  }
+  if (kind === "article") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-900">
+        Bài viết
       </span>
     );
   }

@@ -28,5 +28,15 @@ async function main() {
 
 main().catch((e) => {
   console.error(e);
+  const msg = e instanceof Error ? e.message : String(e);
+  const cause = e && typeof e === "object" && "cause" in e ? (e as { cause?: { code?: string } }).cause : undefined;
+  if (cause?.code === "42P07" || msg.includes("already exists")) {
+    console.error(
+      "\nGợi ý: DB đã có bảng nhưng drizzle.__drizzle_migrations có thể trống — Drizzle chạy lại từ 0000.\n" +
+        "Nếu schema của bạn đã khớp tới migration 0041, baseline rồi migrate lại:\n" +
+        "  npm run db:migrate:baseline -- 0041_banner_section_document_file\n" +
+        "  npm run db:migrate\n",
+    );
+  }
   process.exit(1);
 });

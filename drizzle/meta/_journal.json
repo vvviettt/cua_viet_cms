@@ -281,6 +281,13 @@
       "when": 1778200000000,
       "tag": "0041_banner_section_document_file",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1778300000000,
+      "tag": "0042_app_mobile_home_item_article",
+      "breakpoints": true
     }
   ]
 }

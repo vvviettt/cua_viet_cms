@@ -1112,9 +1112,37 @@ function parseHomeBannerItemKind(raw: string): "native" | "webview" | "file" | n
   return null;
 }
 
-function parseHomeMenuItemKind(raw: string): "native" | "webview" | "file" | null {
-  if (raw === "native" || raw === "webview" || raw === "file") return raw;
+function parseHomeMenuItemKind(raw: string): "native" | "webview" | "file" | "article" | null {
+  if (raw === "native" || raw === "webview" || raw === "file" || raw === "article") return raw;
   return null;
+}
+
+const EMPTY_ARTICLE_BODY_JSON = '{"blocks":[]}';
+const MAX_HOME_MENU_ARTICLE_TITLE_LEN = 200;
+const MAX_HOME_MENU_ARTICLE_JSON_CHARS = 400_000;
+
+function validateHomeMenuArticleBodyJson(
+  raw: string,
+): { ok: true; json: string } | { ok: false; error: string } {
+  const t = raw.trim();
+  if (!t) return { ok: false, error: "Vui lòng nhập nội dung bài viết." };
+  if (t.length > MAX_HOME_MENU_ARTICLE_JSON_CHARS) {
+    return { ok: false, error: "Nội dung bài viết quá dài." };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(t) as unknown;
+  } catch {
+    return { ok: false, error: "Nội dung bài viết không hợp lệ." };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, error: "Nội dung bài viết không hợp lệ." };
+  }
+  const blocks = (parsed as { blocks?: unknown }).blocks;
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return { ok: false, error: "Nội dung bài viết phải có ít nhất một khối." };
+  }
+  return { ok: true, json: t };
 }
 
 export async function createAppMobileItemAction(
@@ -1140,11 +1168,16 @@ export async function createAppMobileItemAction(
   let routeId: string | null = null;
   let webUrl: string | null = null;
   let documentFileId: string | null = null;
+  let articleTitle: string | null = null;
+  let articleBodyJson = EMPTY_ARTICLE_BODY_JSON;
+  let label = "";
+
   if (kind === "native") {
     if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
       return { error: "Vui lòng chọn route native hợp lệ." };
     }
     routeId = routeIdRaw;
+    label = String(formData.get("label") ?? "").trim();
   } else if (kind === "webview") {
     if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
     if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
@@ -1157,18 +1190,28 @@ export async function createAppMobileItemAction(
       return { error: "URL không hợp lệ." };
     }
     webUrl = webUrlRaw;
-  } else {
+    label = String(formData.get("label") ?? "").trim();
+  } else if (kind === "file") {
     if (!(documentUpload instanceof File) || documentUpload.size === 0) {
       return { error: "Chọn tệp PDF, Word hoặc Excel." };
     }
     const savedDoc = await saveAppHomeMenuDocumentFile(session, documentUpload);
     if (!savedDoc.ok) return { error: savedDoc.error };
     documentFileId = savedDoc.fileId;
+    label = String(formData.get("label") ?? "").trim();
+  } else {
+    const titleFull = String(formData.get("articleTitle") ?? "").trim();
+    if (!titleFull) return { error: "Vui lòng nhập tiêu đề bài viết." };
+    if (titleFull.length > MAX_HOME_MENU_ARTICLE_TITLE_LEN) {
+      return { error: `Tiêu đề tối đa ${MAX_HOME_MENU_ARTICLE_TITLE_LEN} ký tự.` };
+    }
+    const bodyCheck = validateHomeMenuArticleBodyJson(String(formData.get("articleBodyJson") ?? ""));
+    if (!bodyCheck.ok) return { error: bodyCheck.error };
+    articleTitle = titleFull;
+    articleBodyJson = bodyCheck.json;
+    label = titleFull.length > 120 ? titleFull.slice(0, 120) : titleFull;
   }
 
-  console.log("kind", kind);
-
-  const label = String(formData.get("label") ?? "").trim();
   if (!label) return { error: "Vui lòng nhập nhãn hiển thị." };
   if (label.length > 120) return { error: "Nhãn tối đa 120 ký tự." };
 
@@ -1197,6 +1240,8 @@ export async function createAppMobileItemAction(
       routeId,
       webUrl,
       documentFileId,
+      articleTitle,
+      articleBodyJson,
       label,
       iconKey,
       iconFileId,
@@ -1243,12 +1288,17 @@ export async function updateAppMobileItemAction(
   let routeId: string | null = null;
   let webUrl: string | null = null;
   let documentFileId: string | null = existing.documentFileId ?? null;
+  let articleTitle: string | null = null;
+  let articleBodyJson = EMPTY_ARTICLE_BODY_JSON;
+  let label = "";
+
   if (kind === "native") {
     if (!routeIdRaw || !isValidNativeRouteId(routeIdRaw)) {
       return { error: "Vui lòng chọn route native hợp lệ." };
     }
     routeId = routeIdRaw;
     documentFileId = null;
+    label = String(formData.get("label") ?? "").trim();
   } else if (kind === "webview") {
     if (!webUrlRaw) return { error: "Vui lòng nhập URL cho webview." };
     if (webUrlRaw.length > 2000) return { error: "URL quá dài." };
@@ -1262,7 +1312,8 @@ export async function updateAppMobileItemAction(
     }
     webUrl = webUrlRaw;
     documentFileId = null;
-  } else {
+    label = String(formData.get("label") ?? "").trim();
+  } else if (kind === "file") {
     routeId = null;
     webUrl = null;
     const shouldUploadDoc = documentUpload instanceof File && documentUpload.size > 0;
@@ -1273,9 +1324,23 @@ export async function updateAppMobileItemAction(
     } else if (!documentFileId) {
       return { error: "Chọn tệp PDF, Word hoặc Excel." };
     }
+    label = String(formData.get("label") ?? "").trim();
+  } else {
+    routeId = null;
+    webUrl = null;
+    documentFileId = null;
+    const titleFull = String(formData.get("articleTitle") ?? "").trim();
+    if (!titleFull) return { error: "Vui lòng nhập tiêu đề bài viết." };
+    if (titleFull.length > MAX_HOME_MENU_ARTICLE_TITLE_LEN) {
+      return { error: `Tiêu đề tối đa ${MAX_HOME_MENU_ARTICLE_TITLE_LEN} ký tự.` };
+    }
+    const bodyCheck = validateHomeMenuArticleBodyJson(String(formData.get("articleBodyJson") ?? ""));
+    if (!bodyCheck.ok) return { error: bodyCheck.error };
+    articleTitle = titleFull;
+    articleBodyJson = bodyCheck.json;
+    label = titleFull.length > 120 ? titleFull.slice(0, 120) : titleFull;
   }
 
-  const label = String(formData.get("label") ?? "").trim();
   if (!label) return { error: "Vui lòng nhập nhãn hiển thị." };
   if (label.length > 120) return { error: "Nhãn tối đa 120 ký tự." };
 
@@ -1309,14 +1374,14 @@ export async function updateAppMobileItemAction(
     newDocumentFileId = documentFileId;
   }
 
-  console.log("kind", kind);
-
   try {
     await updateAppMobileItemContent(id, {
       kind,
       routeId,
       webUrl,
       documentFileId,
+      articleTitle,
+      articleBodyJson,
       label,
       iconKey,
       accentHex,

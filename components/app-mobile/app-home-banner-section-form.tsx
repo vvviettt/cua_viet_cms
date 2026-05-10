@@ -169,7 +169,7 @@ export function AppHomeBannerSectionForm(props: Props) {
             existingFileHref={isEdit ? (props.defaultDocumentPreviewSrc ?? undefined) : undefined}
             existingFileLinkLabel="Mở tệp"
           />
-          <p className="mt-1 text-xs text-zinc-500">PDF, Word hoặc Excel. Lưu trên Supabase Storage.</p>
+          <p className="mt-1 text-xs text-zinc-500">PDF, Word hoặc Excel</p>
         </div>
       )}
 

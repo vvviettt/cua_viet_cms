@@ -10,7 +10,7 @@ export type AppMobileListItem = {
   id: string;
   sectionId: string;
   label: string;
-  kind: "native" | "webview" | "file";
+  kind: "native" | "webview" | "file" | "article";
   routeId: string | null;
   webUrl: string | null;
   sortOrder: number;

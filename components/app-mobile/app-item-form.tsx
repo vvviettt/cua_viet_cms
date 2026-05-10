@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAppMobileItemAction,
@@ -9,13 +9,14 @@ import {
 } from "@/app/actions/app-mobile-config";
 import { APP_MOBILE_NATIVE_ROUTE_IDS } from "@/lib/app-mobile-native-routes";
 import { FileLocalPickRow } from "@/components/ui/file-source-picker";
+import { AppEditorJsField, type EditorJsHandle } from "@/components/app-mobile/app-editorjs-field";
 
 const fieldClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25";
 
 const initial: AppMobileFormState = {};
 
-type ItemKind = "native" | "webview" | "file";
+type ItemKind = "native" | "webview" | "file" | "article";
 
 type CreateProps = {
   mode: "create";
@@ -31,6 +32,8 @@ type EditProps = {
   defaultRouteId: string;
   defaultWebUrl: string;
   defaultLabel: string;
+  defaultArticleTitle: string;
+  defaultArticleBodyJson: string;
   defaultIconKey: string;
   defaultIconPreviewSrc?: string;
   defaultDocumentPreviewSrc?: string;
@@ -43,6 +46,8 @@ export function AppItemForm(props: Props) {
   const router = useRouter();
   const action = props.mode === "create" ? createAppMobileItemAction : updateAppMobileItemAction;
   const [state, formAction, pending] = useActionState(action, initial);
+  const articleEditorRef = useRef<EditorJsHandle | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   const isEdit = props.mode === "edit";
   const initialKind: ItemKind = isEdit ? props.defaultKind : "native";
@@ -59,6 +64,10 @@ export function AppItemForm(props: Props) {
   const hasDocument = Boolean(pickedDocumentFile) || hasExistingDocument;
   const canSubmit = pending ? false : hasIcon && (!needsDocument || hasDocument);
 
+  const defaultArticleJson =
+    isEdit ? props.defaultArticleBodyJson : '{"blocks":[]}';
+  const articleInitialKey = `${isEdit ? props.itemId : "create"}-${kind}`;
+
   useEffect(() => {
     if (!state?.ok) return;
     router.push("/cau-hinh-app/trang-chu");
@@ -68,14 +77,51 @@ export function AppItemForm(props: Props) {
     return <p className="text-sm text-zinc-600">Không có quyền chỉnh sửa.</p>;
   }
 
+  const parseKind = (v: string): ItemKind => {
+    if (v === "webview") return "webview";
+    if (v === "file") return "file";
+    if (v === "article") return "article";
+    return "native";
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setClientError(null);
+    const form = e.currentTarget;
+
+    void (async () => {
+      const fd = new FormData(form);
+      if (kind === "article") {
+        try {
+          const data = await articleEditorRef.current?.save();
+          const json = JSON.stringify(data ?? { blocks: [] });
+          fd.set("articleBodyJson", json);
+          const parsed = JSON.parse(json) as { blocks?: unknown[] };
+          if (!Array.isArray(parsed.blocks) || parsed.blocks.length === 0) {
+            setClientError("Vui lòng nhập nội dung bài viết (ít nhất một khối).");
+            return;
+          }
+        } catch {
+          setClientError("Không thể lưu nội dung soạn thảo. Thử lại.");
+          return;
+        }
+      }
+      startTransition(() => {
+        formAction(fd);
+      });
+    })();
+  };
+
+  const displayError = clientError ?? state?.error;
+
   return (
-    <form action={formAction} className="mt-2 flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4">
       {props.mode === "create" ? <input type="hidden" name="sectionId" value={props.sectionId} /> : null}
       {isEdit ? <input type="hidden" name="itemId" value={props.itemId} /> : null}
 
-      {state?.error ? (
+      {displayError ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
-          {state.error}
+          {displayError}
         </p>
       ) : null}
 
@@ -90,14 +136,14 @@ export function AppItemForm(props: Props) {
           disabled={pending}
           value={kind}
           onChange={(e) => {
-            const v = e.target.value;
-            setKind(v === "webview" ? "webview" : v === "file" ? "file" : "native");
+            setKind(parseKind(e.target.value));
           }}
           className={fieldClass}
         >
           <option value="native">Màn hình trong app</option>
           <option value="webview">Liên kết web</option>
           <option value="file">Tệp PDF / Word / Excel</option>
+          <option value="article">Bài viết</option>
         </select>
       </div>
 
@@ -139,7 +185,7 @@ export function AppItemForm(props: Props) {
           />
           <p className="mt-1 text-xs text-zinc-500">URL đầy đủ, mở trong WebView trong app.</p>
         </div>
-      ) : (
+      ) : kind === "file" ? (
         <div>
           <label className="mb-1 block text-sm font-medium text-zinc-700">
             Tệp đính kèm <span className="text-red-600">*</span>
@@ -159,25 +205,61 @@ export function AppItemForm(props: Props) {
             existingFileHref={isEdit ? props.defaultDocumentPreviewSrc : undefined}
             existingFileLinkLabel="Mở tệp"
           />
-          <p className="mt-1 text-xs text-zinc-500">PDF, Word hoặc Excel. Tối đa 25MB. Lưu trên Supabase Storage.</p>
+          <p className="mt-1 text-xs text-zinc-500">PDF, Word hoặc Excel. Tối đa 25MB.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div>
+            <label htmlFor="article-title" className="mb-1 block text-sm font-medium text-zinc-700">
+              Tiêu đề bài viết <span className="text-red-600">*</span>
+            </label>
+            <input
+              id="article-title"
+              name="articleTitle"
+              type="text"
+              required
+              maxLength={200}
+              disabled={pending}
+              defaultValue={isEdit ? props.defaultArticleTitle : ""}
+              className={fieldClass}
+              placeholder="Nhập tiêu đề"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Nhãn trên lưới trang chủ lấy tối đa 120 ký tự đầu của tiêu đề.
+            </p>
+          </div>
+          <div>
+            <p className="mb-1 text-sm font-medium text-zinc-700">
+              Nội dung <span className="text-red-600">*</span>
+            </p>
+            <AppEditorJsField
+              key={articleInitialKey}
+              editorRef={articleEditorRef}
+              initialJson={kind === "article" ? defaultArticleJson : null}
+              placeholder="Soạn nội dung bài viết…"
+              minHeightClassName="min-h-[320px]"
+            />
+          </div>
         </div>
       )}
 
-      <div>
-        <label htmlFor="item-label" className="mb-1 block text-sm font-medium text-zinc-700">
-          Nhãn hiển thị <span className="text-red-600">*</span>
-        </label>
-        <input
-          id="item-label"
-          name="label"
-          type="text"
-          required
-          maxLength={120}
-          disabled={pending}
-          defaultValue={isEdit ? props.defaultLabel : ""}
-          className={fieldClass}
-        />
-      </div>
+      {kind === "article" ? null : (
+        <div>
+          <label htmlFor="item-label" className="mb-1 block text-sm font-medium text-zinc-700">
+            Nhãn hiển thị <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="item-label"
+            name="label"
+            type="text"
+            required
+            maxLength={120}
+            disabled={pending}
+            defaultValue={isEdit ? props.defaultLabel : ""}
+            className={fieldClass}
+          />
+        </div>
+      )}
 
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -82,6 +82,8 @@ async function main() {
       routeId: extra.routeId ?? null,
       webUrl: extra.webUrl ?? null,
       documentFileId: null,
+      articleTitle: null,
+      articleBodyJson: '{"blocks":[]}',
       label,
       iconKey,
       iconFileId: null,

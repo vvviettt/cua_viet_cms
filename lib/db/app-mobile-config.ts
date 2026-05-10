@@ -669,10 +669,12 @@ export async function deleteAppMobileSection(id: string): Promise<void> {
 
 export async function insertAppMobileItem(values: {
   sectionId: string;
-  kind: "native" | "webview" | "file";
+  kind: "native" | "webview" | "file" | "article";
   routeId: string | null;
   webUrl: string | null;
   documentFileId: string | null;
+  articleTitle: string | null;
+  articleBodyJson: string;
   label: string;
   iconKey: string;
   iconFileId: string | null;
@@ -689,6 +691,8 @@ export async function insertAppMobileItem(values: {
       routeId: values.routeId,
       webUrl: values.webUrl,
       documentFileId: values.documentFileId,
+      articleTitle: values.articleTitle,
+      articleBodyJson: values.articleBodyJson,
       label: values.label,
       iconKey: values.iconKey,
       iconFileId: values.iconFileId,
@@ -707,10 +711,12 @@ export async function insertAppMobileItem(values: {
 export async function updateAppMobileItemContent(
   id: string,
   values: {
-    kind: "native" | "webview" | "file";
+    kind: "native" | "webview" | "file" | "article";
     routeId: string | null;
     webUrl: string | null;
     documentFileId: string | null;
+    articleTitle: string | null;
+    articleBodyJson: string;
     label: string;
     iconKey: string;
     iconFileId: string | null;
@@ -725,6 +731,8 @@ export async function updateAppMobileItemContent(
       routeId: values.routeId,
       webUrl: values.webUrl,
       documentFileId: values.documentFileId,
+      articleTitle: values.articleTitle,
+      articleBodyJson: values.articleBodyJson,
       label: values.label,
       iconKey: values.iconKey,
       iconFileId: values.iconFileId,
@@ -836,11 +844,14 @@ export type PublicAppMobileBanner = {
 
 export type PublicAppMobileItem = {
   id: string;
-  kind: "native" | "webview" | "file";
+  kind: "native" | "webview" | "file" | "article";
   routeId: string | null;
   webUrl: string | null;
   /** URL công khai khi kind=file (PDF / Word / Excel). */
   fileUrl: string | null;
+  articleTitle: string | null;
+  /** Chuỗi JSON EditorJS (OutputData). */
+  articleBodyJson: string | null;
   label: string;
   iconKey: string;
   iconImagePath: string | null;
@@ -929,6 +940,10 @@ export type PublicHomeCmsSection =
         icon: string | null;
         url?: string | null;
         routePath?: string | null;
+        kind?: string | null;
+        fileUrl?: string | null;
+        articleTitle?: string | null;
+        articleBodyJson?: string | null;
       }>;
     }>;
   }
@@ -952,6 +967,10 @@ export type PublicHomeCmsSection =
       icon: string | null;
       url: string | null;
       routePath: string | null;
+      kind?: string | null;
+      fileUrl?: string | null;
+      articleTitle?: string | null;
+      articleBodyJson?: string | null;
     }>;
   }
   | {
@@ -1182,6 +1201,9 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       routeId: it.routeId,
       webUrl: it.webUrl,
       fileUrl,
+      articleTitle: it.articleTitle ?? null,
+      articleBodyJson:
+        it.kind === "article" ? (it.articleBodyJson ?? '{"blocks":[]}') : null,
       label: it.label,
       iconKey: it.iconKey,
       iconImagePath,
@@ -1298,7 +1320,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
 
 function mapItemLink(it: PublicAppMobileItem): { url: string | null; routePath: string | null } {
   if (it.kind === "webview") return { url: it.webUrl ?? null, routePath: null };
-  if (it.kind === "file") return { url: null, routePath: null };
+  if (it.kind === "file" || it.kind === "article") return { url: null, routePath: null };
   return { url: null, routePath: it.routeId ?? null };
 }
 
@@ -1335,6 +1357,8 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
         routePath: link.routePath,
         kind: it.kind,
         fileUrl: it.fileUrl ?? null,
+        articleTitle: it.articleTitle ?? null,
+        articleBodyJson: it.kind === "article" ? (it.articleBodyJson ?? null) : null,
       };
     }),
   }));
@@ -1376,6 +1400,8 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
           routePath: link.routePath,
           kind: it.kind,
           fileUrl: it.fileUrl ?? null,
+          articleTitle: it.articleTitle ?? null,
+          articleBodyJson: it.kind === "article" ? (it.articleBodyJson ?? null) : null,
         },
       ] as const;
     }),
@@ -1389,6 +1415,8 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
     routePath: string | null;
     kind: PublicAppMobileItem["kind"];
     fileUrl: string | null;
+    articleTitle: string | null;
+    articleBodyJson: string | null;
   }> = [];
   const seen = new Set<string>();
   for (const id of favoriteIds) {
