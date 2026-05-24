@@ -23,7 +23,7 @@ export default async function ThemMucMenuPage({ params }: Props) {
   const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
       <div className="text-sm">
         <Link
           href="/cau-hinh-app/trang-chu"

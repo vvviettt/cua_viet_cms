@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { InputField } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { AppEditorJsField, type EditorJsHandle } from "@/components/app-mobile/app-editorjs-field";
+import { AppCKEditorField, type AppRichTextEditorHandle } from "@/components/app-mobile/app-ckeditor-field";
 
 type TabId = "general" | "content" | "faqs";
 
@@ -101,8 +101,8 @@ export function AppSettingsPanel({
   const [usageGuideJson, setUsageGuideJson] = useState(defaultUsageGuideJson ?? '{"blocks":[]}');
   const [termsJson, setTermsJson] = useState(defaultTermsJson ?? '{"blocks":[]}');
 
-  const usageRef = useRef<EditorJsHandle | null>(null);
-  const termsRef = useRef<EditorJsHandle | null>(null);
+  const usageRef = useRef<AppRichTextEditorHandle | null>(null);
+  const termsRef = useRef<AppRichTextEditorHandle | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
   const [state, formAction, pending] = useActionState(updateAppMobileSettingsAction, initialFormState);
@@ -247,7 +247,7 @@ export function AppSettingsPanel({
               <div className="mb-2">
                 <p className="text-sm font-semibold text-zinc-900">Hướng dẫn sử dụng</p>
               </div>
-              <AppEditorJsField
+              <AppCKEditorField
                 initialJson={defaultUsageGuideJson}
                 editorRef={usageRef}
                 placeholder="Viết hướng dẫn…"
@@ -258,7 +258,7 @@ export function AppSettingsPanel({
               <div className="mb-2">
                 <p className="text-sm font-semibold text-zinc-900">Chính sách & điều khoản</p>
               </div>
-              <AppEditorJsField
+              <AppCKEditorField
                 initialJson={defaultTermsJson}
                 editorRef={termsRef}
                 placeholder="Viết điều khoản…"

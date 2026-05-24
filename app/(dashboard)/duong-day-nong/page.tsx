@@ -17,7 +17,7 @@ export default async function DuongDayNongPage() {
   const canEdit = session ? await sessionCanEditModule(session, "hotline") : false;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <Link
         href="/"
         className="text-sm font-medium text-(--portal-primary) underline-offset-2 hover:underline"

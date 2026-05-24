@@ -29,7 +29,7 @@ export default async function ChinhSuaMucMenuPage({ params }: Props) {
   const documentPreview = docFile ? uploadsPublicHref(docFile.relativePath) : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <div className="text-sm">
         <Link
           href="/cau-hinh-app/trang-chu"
@@ -51,7 +51,7 @@ export default async function ChinhSuaMucMenuPage({ params }: Props) {
           defaultWebUrl={it.webUrl ?? ""}
           defaultLabel={it.label}
           defaultArticleTitle={it.kind === "article" ? (it.articleTitle ?? it.label) : ""}
-          defaultArticleBodyJson={it.articleBodyJson ?? '{"blocks":[]}'}
+          defaultArticleBodyJson={it.articleBodyJson ?? '{"html":""}'}
           defaultIconKey={it.iconKey}
           defaultIconPreviewSrc={iconPreview}
           defaultDocumentPreviewSrc={documentPreview}

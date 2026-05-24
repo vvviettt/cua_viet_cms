@@ -14,6 +14,7 @@ import {
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { listNewsArticlesVisiblePublicPaged } from "@/lib/db/news-articles";
 import { ensureAppMobileSettingsRow, listAppMobileFaqsPublic } from "@/lib/db/app-mobile-settings";
+import { normalizeAppMobileArticleBodyForPublic } from "@/lib/app-mobile-rich-text";
 
 type FileRow = typeof files.$inferSelect;
 
@@ -1203,7 +1204,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       fileUrl,
       articleTitle: it.articleTitle ?? null,
       articleBodyJson:
-        it.kind === "article" ? (it.articleBodyJson ?? '{"blocks":[]}') : null,
+        it.kind === "article" ? normalizeAppMobileArticleBodyForPublic(it.articleBodyJson) : null,
       label: it.label,
       iconKey: it.iconKey,
       iconImagePath,

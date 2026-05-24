@@ -283,10 +283,10 @@
       "breakpoints": true
     },
     {
-      "idx": 40,
+      "idx": 41,
       "version": "7",
-      "when": 1778300000000,
-      "tag": "0042_app_mobile_home_item_article",
+      "when": 1778400000000,
+      "tag": "0043_app_mobile_article_body_html_default",
       "breakpoints": true
     }
   ]

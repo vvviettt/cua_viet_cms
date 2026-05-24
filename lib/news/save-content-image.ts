@@ -5,6 +5,9 @@ import { uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
 
 /** Dùng chung với job dọn ảnh nội dung tin. */
 export const NEWS_CONTENT_IMAGE_RELATIVE_PREFIX = "tin-tuc/noi-dung";
+
+/** Ảnh trong CKEditor (cấu hình app mobile). */
+export const APP_MOBILE_RICH_TEXT_IMAGE_RELATIVE_PREFIX = "cau-hinh-app/noi-dung";
 export const MAX_CONTENT_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export function extFromUploadName(nameLower: string, fileMime: string): { ext: string; mime: string } | null {
@@ -66,12 +69,15 @@ export async function persistContentImageBuffer(params: {
   buf: Buffer;
   parsed: { ext: string; mime: string };
   originalName: string;
+  /** Mặc định: thư mục ảnh nội dung tin tức. */
+  storageRelativePrefix?: string;
 }): Promise<{ url: string }> {
   if (params.buf.length < 10) {
     throw new Error("invalid_image");
   }
   const fileName = `nd-${randomUUID()}.${params.parsed.ext}`;
-  const relativePath = `${NEWS_CONTENT_IMAGE_RELATIVE_PREFIX}/${fileName}`;
+  const prefix = params.storageRelativePrefix ?? NEWS_CONTENT_IMAGE_RELATIVE_PREFIX;
+  const relativePath = `${prefix}/${fileName}`;
   const { publicUrl } = await uploadBufferToSupabase({
     relativePath,
     buf: params.buf,

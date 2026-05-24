@@ -46,7 +46,7 @@ export default async function ChinhSuaBannerAppPage({ params, searchParams }: Se
   const linkErrKey = Array.isArray(linkErrRaw) ? linkErrRaw[0] : linkErrRaw;
   const linkErrMessage = linkErrKey ? linkErrMessages[linkErrKey] ?? null : null;
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <Link
           href={appMobileCauHinhPaths.trangChu}

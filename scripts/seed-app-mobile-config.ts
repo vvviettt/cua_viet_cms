@@ -83,7 +83,7 @@ async function main() {
       webUrl: extra.webUrl ?? null,
       documentFileId: null,
       articleTitle: null,
-      articleBodyJson: '{"blocks":[]}',
+      articleBodyJson: '{"html":""}',
       label,
       iconKey,
       iconFileId: null,

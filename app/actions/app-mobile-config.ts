@@ -6,6 +6,10 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { SessionPayload } from "@/lib/session-cookie";
 import { isValidAppMobileIconKey } from "@/lib/app-mobile-icon-keys";
+import {
+  appMobileRichTextHasContent,
+  normalizeAppMobileArticleBodyStorage,
+} from "@/lib/app-mobile-rich-text";
 import { isValidNativeRouteId } from "@/lib/app-mobile-native-routes";
 import { deleteFileRecordById, findFileById, insertUploadedFile } from "@/lib/db/file-records";
 import { removeSupabaseObject, uploadBufferToSupabase } from "@/lib/uploads/supabase-storage";
@@ -1117,7 +1121,7 @@ function parseHomeMenuItemKind(raw: string): "native" | "webview" | "file" | "ar
   return null;
 }
 
-const EMPTY_ARTICLE_BODY_JSON = '{"blocks":[]}';
+const EMPTY_ARTICLE_BODY_JSON = '{"html":""}';
 const MAX_HOME_MENU_ARTICLE_TITLE_LEN = 200;
 const MAX_HOME_MENU_ARTICLE_JSON_CHARS = 400_000;
 
@@ -1138,11 +1142,14 @@ function validateHomeMenuArticleBodyJson(
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     return { ok: false, error: "Nội dung bài viết không hợp lệ." };
   }
-  const blocks = (parsed as { blocks?: unknown }).blocks;
-  if (!Array.isArray(blocks) || blocks.length === 0) {
-    return { ok: false, error: "Nội dung bài viết phải có ít nhất một khối." };
+  if (!appMobileRichTextHasContent(parsed as Record<string, unknown>)) {
+    return { ok: false, error: "Vui lòng nhập nội dung bài viết." };
   }
-  return { ok: true, json: t };
+  const normalized = normalizeAppMobileArticleBodyStorage(t);
+  if (!normalized) {
+    return { ok: false, error: "Vui lòng nhập nội dung bài viết." };
+  }
+  return { ok: true, json: normalized };
 }
 
 export async function createAppMobileItemAction(

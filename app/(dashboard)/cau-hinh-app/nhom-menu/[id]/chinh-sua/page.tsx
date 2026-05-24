@@ -28,7 +28,7 @@ export default async function ChinhSuaNhomMenuPage({ params }: Props) {
   const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <div className="text-sm">
         <Link
           href={appMobileCauHinhPaths.trangChu}

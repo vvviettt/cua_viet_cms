@@ -9,7 +9,8 @@ import {
 } from "@/app/actions/app-mobile-config";
 import { APP_MOBILE_NATIVE_ROUTE_IDS } from "@/lib/app-mobile-native-routes";
 import { FileLocalPickRow } from "@/components/ui/file-source-picker";
-import { AppEditorJsField, type EditorJsHandle } from "@/components/app-mobile/app-editorjs-field";
+import { AppCKEditorField, type AppRichTextEditorHandle } from "@/components/app-mobile/app-ckeditor-field";
+import { appMobileRichTextHasContent } from "@/lib/app-mobile-rich-text";
 
 const fieldClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-(--portal-primary) focus:outline-none focus:ring-2 focus:ring-(--portal-primary)/25";
@@ -46,7 +47,7 @@ export function AppItemForm(props: Props) {
   const router = useRouter();
   const action = props.mode === "create" ? createAppMobileItemAction : updateAppMobileItemAction;
   const [state, formAction, pending] = useActionState(action, initial);
-  const articleEditorRef = useRef<EditorJsHandle | null>(null);
+  const articleEditorRef = useRef<AppRichTextEditorHandle | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
 
   const isEdit = props.mode === "edit";
@@ -64,8 +65,7 @@ export function AppItemForm(props: Props) {
   const hasDocument = Boolean(pickedDocumentFile) || hasExistingDocument;
   const canSubmit = pending ? false : hasIcon && (!needsDocument || hasDocument);
 
-  const defaultArticleJson =
-    isEdit ? props.defaultArticleBodyJson : '{"blocks":[]}';
+  const defaultArticleJson = isEdit ? props.defaultArticleBodyJson : '{"html":""}';
   const articleInitialKey = `${isEdit ? props.itemId : "create"}-${kind}`;
 
   useEffect(() => {
@@ -94,11 +94,11 @@ export function AppItemForm(props: Props) {
       if (kind === "article") {
         try {
           const data = await articleEditorRef.current?.save();
-          const json = JSON.stringify(data ?? { blocks: [] });
+          const json = JSON.stringify(data ?? { html: "" });
           fd.set("articleBodyJson", json);
-          const parsed = JSON.parse(json) as { blocks?: unknown[] };
-          if (!Array.isArray(parsed.blocks) || parsed.blocks.length === 0) {
-            setClientError("Vui lòng nhập nội dung bài viết (ít nhất một khối).");
+          const parsed = JSON.parse(json) as Record<string, unknown>;
+          if (!appMobileRichTextHasContent(parsed)) {
+            setClientError("Vui lòng nhập nội dung bài viết.");
             return;
           }
         } catch {
@@ -232,12 +232,12 @@ export function AppItemForm(props: Props) {
             <p className="mb-1 text-sm font-medium text-zinc-700">
               Nội dung <span className="text-red-600">*</span>
             </p>
-            <AppEditorJsField
+            <AppCKEditorField
               key={articleInitialKey}
               editorRef={articleEditorRef}
               initialJson={kind === "article" ? defaultArticleJson : null}
               placeholder="Soạn nội dung bài viết…"
-              minHeightClassName="min-h-[320px]"
+              minHeightClassName="min-h-[400px]"
             />
           </div>
         </div>

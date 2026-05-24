@@ -17,7 +17,7 @@ export default async function TinTucPage() {
   const canEdit = session ? await sessionCanEditModule(session, "news") : false;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <Link
         href="/"
         className="text-sm font-medium text-(--portal-primary) underline-offset-2 hover:underline"
@@ -28,7 +28,7 @@ export default async function TinTucPage() {
       <header className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Tin tức</h1>
-         
+
         </div>
         {canEdit ? (
           <Link

@@ -209,8 +209,8 @@ export const appMobileHomeItems = pgTable("app_mobile_home_items", {
   documentFileId: uuid("document_file_id").references(() => files.id, { onDelete: "set null" }),
   /** Khi kind=article: tiêu đề màn bài viết (có thể dài hơn nhãn lưới). */
   articleTitle: text("article_title"),
-  /** Khi kind=article: nội dung EditorJS (JSON string). */
-  articleBodyJson: text("article_body_json").notNull().default('{"blocks":[]}'),
+  /** Khi kind=article: nội dung HTML (chuỗi JSON `{ "html": "..." }`, legacy blocks được CMS chuẩn hoá khi lưu). */
+  articleBodyJson: text("article_body_json").notNull().default('{"html":""}'),
   label: text("label").notNull(),
   iconKey: text("icon_key").notNull().default("help_outline"),
   iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),

@@ -22,6 +22,7 @@
     "cron:cleanup-news-content-images": "tsx scripts/cleanup-news-content-images.ts"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-react": "^11.1.2",
     "@editorjs/delimiter": "^1.4.2",
     "@editorjs/editorjs": "^2.31.5",
     "@editorjs/embed": "^2.7.7",
@@ -31,6 +32,7 @@
     "@editorjs/quote": "^2.7.6",
     "@supabase/supabase-js": "^2.103.0",
     "bcryptjs": "^3.0.3",
+    "ckeditor5": "^48.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

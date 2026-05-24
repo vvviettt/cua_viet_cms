@@ -31,7 +31,7 @@ export default async function ThemMucCtaPage({ params }: Props) {
   const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <div className="text-sm">
         <Link href="/cau-hinh-app/trang-chu" className="font-medium text-(--portal-primary) underline-offset-2 hover:underline">
           ← Cấu hình app

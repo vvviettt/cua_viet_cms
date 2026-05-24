@@ -18,7 +18,7 @@ export default async function ThemTinTucPage() {
   const categories = categoryRows.map((c) => ({ id: c.id, title: c.title }));
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full flex-1 px-4 py-10 max-w-6xl">
       <Link
         href="/tin-tuc"
         className="text-sm font-medium text-(--portal-primary) underline-offset-2 hover:underline"
