@@ -4,11 +4,12 @@ import "./globals.css";
 import { SITE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "vietnamese"],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {

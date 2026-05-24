@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     },
     proxyClientMaxBodySize: "100mb",
   },
+  optimizeFonts: false,
 };
 
 export default nextConfig;
