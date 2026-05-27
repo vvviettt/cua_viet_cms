@@ -572,6 +572,14 @@ export async function setAppMobileSectionActive(id: string, isActive: boolean): 
     .where(eq(appMobileHomeSections.id, id));
 }
 
+export async function setAppMobileSectionShowBelowFavorites(id: string, showBelowFavorites: boolean): Promise<void> {
+  const now = new Date().toISOString();
+  await getDb()
+    .update(appMobileHomeSections)
+    .set({ showBelowFavorites, updatedAt: now })
+    .where(eq(appMobileHomeSections.id, id));
+}
+
 export async function setAppMobileItemActive(id: string, isActive: boolean): Promise<void> {
   const now = new Date().toISOString();
   await getDb()
@@ -866,6 +874,7 @@ export type PublicAppMobileSection = {
   id: string;
   title: string;
   sortOrder: number;
+  showBelowFavorites: boolean;
   items: PublicAppMobileItem[];
 };
 
@@ -961,6 +970,23 @@ export type PublicHomeCmsSection =
   }
   | {
     type: "favorite-section";
+    label: string | null;
+    /** Mặc định true — nhóm dưới yêu thích gửi false để ẩn nút “Chỉnh sửa”. */
+    showEdit?: boolean;
+    items: Array<{
+      id: string;
+      label: string;
+      icon: string | null;
+      url: string | null;
+      routePath: string | null;
+      kind?: string | null;
+      fileUrl?: string | null;
+      articleTitle?: string | null;
+      articleBodyJson?: string | null;
+    }>;
+  }
+  | {
+    type: "menu-section";
     label: string | null;
     items: Array<{
       id: string;
@@ -1219,6 +1245,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     id: s.id,
     title: s.title,
     sortOrder: s.sortOrder,
+    showBelowFavorites: s.showBelowFavorites,
     items: (itemsBySection.get(s.id) ?? []).sort((a, b) => {
       const c = a.sortOrder - b.sortOrder;
       return c !== 0 ? c : a.label.localeCompare(b.label, "vi");
@@ -1325,26 +1352,26 @@ function mapItemLink(it: PublicAppMobileItem): { url: string | null; routePath: 
   return { url: null, routePath: it.routeId ?? null };
 }
 
-/** Payload giống `dich_vu_phuong/lib/data/json/home-cms.json` (schema-driven trang chủ). */
-export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[] }): Promise<PublicHomeCmsSection[]> {
-  const cfg = await buildPublicAppMobileConfig();
-  const favoriteIds = (opts?.favoriteIds ?? []).map((s) => s.trim()).filter(Boolean);
-
-  // 1) slide-section: gom các section -> item, children là menu items.
-  const sectionIconRows = await getDb()
-    .select({
-      sectionId: appMobileHomeSections.id,
-      iconRelativePath: files.relativePath,
-    })
-    .from(appMobileHomeSections)
-    .leftJoin(files, eq(appMobileHomeSections.iconFileId, files.id));
-  const iconBySectionId = new Map<string, string>();
-  for (const r of sectionIconRows) {
-    if (!r.iconRelativePath) continue;
-    iconBySectionId.set(r.sectionId, uploadsPublicHref(r.iconRelativePath));
-  }
-
-  const slideItems = cfg.sections.map((s) => ({
+function mapSectionToSlideItem(
+  s: PublicAppMobileSection,
+  iconBySectionId: Map<string, string>,
+): {
+  id: string;
+  label: string;
+  icon: string | null;
+  children: Array<{
+    id: string;
+    label: string;
+    icon: string | null;
+    url: string | null;
+    routePath: string | null;
+    kind: PublicAppMobileItem["kind"];
+    fileUrl: string | null;
+    articleTitle: string | null;
+    articleBodyJson: string | null;
+  }>;
+} {
+  return {
     id: s.id,
     label: s.title,
     icon: iconBySectionId.get(s.id) ?? null,
@@ -1362,7 +1389,32 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
         articleBodyJson: it.kind === "article" ? (it.articleBodyJson ?? null) : null,
       };
     }),
-  }));
+  };
+}
+
+/** Payload giống `dich_vu_phuong/lib/data/json/home-cms.json` (schema-driven trang chủ). */
+export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[] }): Promise<PublicHomeCmsSection[]> {
+  const cfg = await buildPublicAppMobileConfig();
+  const favoriteIds = (opts?.favoriteIds ?? []).map((s) => s.trim()).filter(Boolean);
+
+  const mainSlideSections = cfg.sections.filter((s) => !s.showBelowFavorites);
+  const belowFavoriteSections = cfg.sections.filter((s) => s.showBelowFavorites);
+
+  // 1) slide-section: gom các section -> item, children là menu items.
+  const sectionIconRows = await getDb()
+    .select({
+      sectionId: appMobileHomeSections.id,
+      iconRelativePath: files.relativePath,
+    })
+    .from(appMobileHomeSections)
+    .leftJoin(files, eq(appMobileHomeSections.iconFileId, files.id));
+  const iconBySectionId = new Map<string, string>();
+  for (const r of sectionIconRows) {
+    if (!r.iconRelativePath) continue;
+    iconBySectionId.set(r.sectionId, uploadsPublicHref(r.iconRelativePath));
+  }
+
+  const slideItems = mainSlideSections.map((s) => mapSectionToSlideItem(s, iconBySectionId));
 
   // 2) carousel-section: dùng banners top, có link (redirectUrl/routePath) nếu cấu hình.
   const bannerTopJoin = await getDb()
@@ -1446,10 +1498,31 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
     createdAt: r.createdAt,
   }));
 
+  const belowFavoriteBlocks: PublicHomeCmsSection[] = belowFavoriteSections.map((s) => ({
+    type: "favorite-section",
+    label: s.title,
+    showEdit: false,
+    items: s.items.map((it) => {
+      const link = mapItemLink(it);
+      return {
+        id: it.id,
+        label: it.label,
+        icon: it.iconImageUrl ?? null,
+        url: link.url,
+        routePath: link.routePath,
+        kind: it.kind,
+        fileUrl: it.fileUrl ?? null,
+        articleTitle: it.articleTitle ?? null,
+        articleBodyJson: it.kind === "article" ? (it.articleBodyJson ?? null) : null,
+      };
+    }),
+  }));
+
   return [
     { type: "slide-section", label: "Nhóm dịch vụ", items: slideItems },
     { type: "carousel-section", label: null, items: carouselItems },
     { type: "favorite-section", label: "Tiện ích yêu thích", items: favoriteItems },
+    ...belowFavoriteBlocks,
     { type: "news-section", label: "Tin tức", items: newsItems },
   ];
 }

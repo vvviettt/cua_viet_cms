@@ -69,6 +69,7 @@ export default async function CauHinhAppTrangChuPage() {
     title: sec.title,
     sortOrder: sec.sortOrder,
     isActive: sec.isActive,
+    showBelowFavorites: sec.showBelowFavorites,
     items: (itemsBySection.get(sec.id) ?? []).map((it) => ({
       id: it.id,
       sectionId: it.sectionId,

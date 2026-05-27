@@ -190,6 +190,8 @@ export const appMobileHomeSections = pgTable("app_mobile_home_sections", {
   iconFileId: uuid("icon_file_id").references(() => files.id, { onDelete: "set null" }),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  /** Khi bật: nhóm hiển thị riêng dưới “Tiện ích yêu thích”, không nằm trong carousel “Nhóm dịch vụ”. */
+  showBelowFavorites: boolean("show_below_favorites").notNull().default(false),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -302,11 +304,16 @@ export const appMobileHomeBannerItems = pgTable("app_mobile_home_banner_items", 
   updatedAt: text("updated_at").notNull(),
 });
 
+/** Nền tảng thiết bị đăng ký FCM. */
+export const appPushPlatformEnum = pgEnum("app_push_platform", ["android", "ios"]);
+
 /** Cài đặt ứng dụng (một bản ghi) — app dùng để quyết định hiển thị & nội dung. */
 export const appMobileSettings = pgTable("app_mobile_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** Cho phép người dân đăng ký tài khoản mới. */
   allowCitizenRegister: boolean("allow_citizen_register").notNull().default(true),
+  /** Bật gửi push Firebase khi CMS gửi thông báo. */
+  pushNotificationsEnabled: boolean("push_notifications_enabled").notNull().default(true),
   /** Hotline hỗ trợ (chỉ số, lưu dạng string). */
   supportHotline: text("support_hotline"),
   /** Chuỗi JSON OutputData của Editor.js */
@@ -323,6 +330,39 @@ export const appMobileFaqs = pgTable("app_mobile_faqs", {
   answer: text("answer").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Loại thông báo push trong app (tab Thông báo). */
+export const appMobileNotificationCategoryEnum = pgEnum("app_mobile_notification_category", [
+  "system",
+  "news",
+  "plan",
+  "event",
+]);
+
+/** Thông báo gửi tới người dùng app — quản lý từ CMS. */
+export const appMobileNotifications = pgTable("app_mobile_notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  category: appMobileNotificationCategoryEnum("category").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  /** ISO timestamp khi đã push; null = chưa gửi tới người dùng. */
+  sentAt: text("sent_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Token FCM của thiết bị app — dùng khi gửi push từ CMS. */
+export const appPushDeviceTokens = pgTable("app_push_device_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fcmToken: text("fcm_token").notNull().unique(),
+  platform: appPushPlatformEnum("platform").notNull(),
+  citizenAccountId: uuid("citizen_account_id").references(() => citizenAccounts.id, {
+    onDelete: "set null",
+  }),
+  deviceId: text("device_id"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

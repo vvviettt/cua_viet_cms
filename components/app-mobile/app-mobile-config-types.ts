@@ -23,6 +23,7 @@ export type AppMobileListSection = {
   title: string;
   sortOrder: number;
   isActive: boolean;
+  showBelowFavorites: boolean;
   items: AppMobileListItem[];
 };
 

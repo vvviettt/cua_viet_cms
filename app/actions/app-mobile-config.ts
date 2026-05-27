@@ -48,6 +48,7 @@ import {
   setAppMobileItemActive,
   setAppMobileItemDefaultFavorite,
   setAppMobileSectionActive,
+  setAppMobileSectionShowBelowFavorites,
   setAppMobileShellTabActive,
   setAppMobileHomeBannerItemActive,
   setAppMobileHomeBannerSectionActive,
@@ -1489,6 +1490,21 @@ export async function setAppMobileSectionActiveServer(id: string, isActive: bool
   if (!UUID_RE.test(id)) return;
   try {
     await setAppMobileSectionActive(id, isActive);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileSectionShowBelowFavoritesServer(
+  id: string,
+  showBelowFavorites: boolean,
+): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileSectionShowBelowFavorites(id, showBelowFavorites);
   } catch (e) {
     console.error(e);
   }

@@ -288,6 +288,34 @@
       "when": 1778400000000,
       "tag": "0043_app_mobile_article_body_html_default",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1778500000000,
+      "tag": "0044_app_mobile_home_sections_show_below_favorites",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1778600000000,
+      "tag": "0045_app_mobile_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1778700000000,
+      "tag": "0046_drop_notification_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1778800000000,
+      "tag": "0047_app_push_notifications",
+      "breakpoints": true
     }
   ]
 }

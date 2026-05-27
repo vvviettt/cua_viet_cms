@@ -1,19 +1,41 @@
 import type { Metadata } from "next";
 import { AppMobileCauHinhPageShell } from "@/components/app-mobile/app-mobile-cau-hinh-page-shell";
-import { AppMobileShellTabsPanel, AppMobileShellTabVisibleToggle } from "@/components/app-mobile/app-mobile-shell-tabs-panel";
+import { AppMobileNotificationsPanel } from "@/components/app-mobile/app-mobile-notifications-panel";
+import { AppMobileShellTabVisibleToggle } from "@/components/app-mobile/app-mobile-shell-tabs-panel";
 import { getSession } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 import { listAppMobileShellTabsForCms } from "@/lib/db/app-mobile-config";
+import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
+import {
+  NOTIFICATION_LIST_PAGE_SIZE,
+  listAppMobileNotificationsPaginated,
+} from "@/lib/db/app-mobile-notifications";
 import { sessionCanEditModule } from "@/lib/cms-module-access";
 
 export const metadata: Metadata = {
   title: `Thông báo — ${SITE.shortTitle}`,
 };
 
-export default async function CauHinhAppThongBaoPage() {
+export default async function CauHinhAppThongBaoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[] }>;
+}) {
+  const sp = await searchParams;
+  const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const requestedPage = Math.max(1, parseInt(String(pageRaw ?? "1"), 10) || 1);
+
   const session = await getSession();
   const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
-  const shellTabsRows = await listAppMobileShellTabsForCms();
+  const [shellTabsRows, notificationPage] = await Promise.all([
+    listAppMobileShellTabsForCms(),
+    listAppMobileNotificationsPaginated({
+      page: requestedPage,
+      pageSize: NOTIFICATION_LIST_PAGE_SIZE,
+    }),
+  ]);
+  const totalPages =
+    notificationPage.total === 0 ? 0 : Math.ceil(notificationPage.total / notificationPage.pageSize);
 
   const listShellTabs = shellTabsRows.map((t) => ({
     id: t.id,
@@ -27,7 +49,7 @@ export default async function CauHinhAppThongBaoPage() {
   return (
     <AppMobileCauHinhPageShell
       title="Thông báo"
-      description="Danh sách thông báo do ứng dụng và máy chủ quản lý. Tại đây bạn chỉnh tab Thông báo trên thanh điều hướng dưới app."
+      description="Quản lý thông báo gửi tới người dùng app và bật/tắt tab Thông báo trên thanh điều hướng dưới."
       titleAfter={
         notificationsTab ? (
           <AppMobileShellTabVisibleToggle
@@ -38,7 +60,24 @@ export default async function CauHinhAppThongBaoPage() {
         ) : null
       }
     >
-      <></>
+      <AppMobileNotificationsPanel
+        canEdit={canEdit}
+        items={notificationPage.items.map((n) => ({
+          id: n.id,
+          category: n.category,
+          title: n.title,
+          content: n.content,
+          sentAt: n.sentAt,
+          createdAt: n.createdAt,
+        }))}
+        pagination={{
+          basePath: appMobileCauHinhPaths.thongBao,
+          currentPage: notificationPage.page,
+          totalPages,
+          totalItems: notificationPage.total,
+          pageSize: notificationPage.pageSize,
+        }}
+      />
     </AppMobileCauHinhPageShell>
   );
 }
