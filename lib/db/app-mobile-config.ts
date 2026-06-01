@@ -868,6 +868,7 @@ export type PublicAppMobileItem = {
   accentHex: string;
   isDefaultFavorite: boolean;
   sortOrder: number;
+  createdAt: string;
 };
 
 export type PublicAppMobileSection = {
@@ -875,6 +876,7 @@ export type PublicAppMobileSection = {
   title: string;
   sortOrder: number;
   showBelowFavorites: boolean;
+  createdAt: string;
   items: PublicAppMobileItem[];
 };
 
@@ -942,12 +944,14 @@ export type PublicHomeCmsSection =
       id: string;
       label: string;
       icon: string | null;
+      createdAt: string;
       url?: string | null;
       routePath?: string | null;
       children: Array<{
         id: string;
         label: string;
         icon: string | null;
+        createdAt: string;
         url?: string | null;
         routePath?: string | null;
         kind?: string | null;
@@ -977,6 +981,7 @@ export type PublicHomeCmsSection =
       id: string;
       label: string;
       icon: string | null;
+      createdAt: string;
       url: string | null;
       routePath: string | null;
       kind?: string | null;
@@ -1238,6 +1243,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       accentHex: it.accentHex,
       isDefaultFavorite: it.isDefaultFavorite,
       sortOrder: it.sortOrder,
+      createdAt: it.createdAt,
     });
   }
 
@@ -1246,6 +1252,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     title: s.title,
     sortOrder: s.sortOrder,
     showBelowFavorites: s.showBelowFavorites,
+    createdAt: s.createdAt,
     items: (itemsBySection.get(s.id) ?? []).sort((a, b) => {
       const c = a.sortOrder - b.sortOrder;
       return c !== 0 ? c : a.label.localeCompare(b.label, "vi");
@@ -1359,10 +1366,12 @@ function mapSectionToSlideItem(
   id: string;
   label: string;
   icon: string | null;
+  createdAt: string;
   children: Array<{
     id: string;
     label: string;
     icon: string | null;
+    createdAt: string;
     url: string | null;
     routePath: string | null;
     kind: PublicAppMobileItem["kind"];
@@ -1375,12 +1384,14 @@ function mapSectionToSlideItem(
     id: s.id,
     label: s.title,
     icon: iconBySectionId.get(s.id) ?? null,
+    createdAt: s.createdAt,
     children: s.items.map((it) => {
       const link = mapItemLink(it);
       return {
         id: it.id,
         label: it.label,
         icon: it.iconImageUrl ?? null,
+        createdAt: it.createdAt,
         url: link.url,
         routePath: link.routePath,
         kind: it.kind,
@@ -1449,6 +1460,7 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
           id: it.id,
           label: it.label,
           icon: it.iconImageUrl ?? null,
+          createdAt: it.createdAt,
           url: link.url,
           routePath: link.routePath,
           kind: it.kind,
@@ -1464,6 +1476,7 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
     id: string;
     label: string;
     icon: string | null;
+    createdAt: string;
     url: string | null;
     routePath: string | null;
     kind: PublicAppMobileItem["kind"];
@@ -1508,6 +1521,7 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
         id: it.id,
         label: it.label,
         icon: it.iconImageUrl ?? null,
+        createdAt: it.createdAt,
         url: link.url,
         routePath: link.routePath,
         kind: it.kind,
