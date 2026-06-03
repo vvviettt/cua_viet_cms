@@ -14,6 +14,7 @@ import {
   listAppMobileSectionsForCms,
   listAppMobileShellTabsForCms,
 } from "@/lib/db/app-mobile-config";
+import { listAppMobileRssFeedsForCms } from "@/lib/db/app-mobile-rss-feeds";
 import { findFileById } from "@/lib/db/file-records";
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { sessionCanEditModule } from "@/lib/cms-module-access";
@@ -35,7 +36,7 @@ function toBannerList(rows: Awaited<ReturnType<typeof listAppMobileBannersForCms
 export default async function CauHinhAppTrangChuPage() {
   const session = await getSession();
   const canEdit = session ? await sessionCanEditModule(session, "app_mobile") : false;
-  const [theme, homeBanner, ctaApplySections, ctaLookupSections, ctaItems, bannersTop, sections, items, shellTabsRows] =
+  const [theme, homeBanner, ctaApplySections, ctaLookupSections, ctaItems, bannersTop, sections, items, shellTabsRows, rssFeedsRows] =
     await Promise.all([
       ensureAppMobileThemeRow(),
       ensureAppMobileHomeBannerRow(),
@@ -46,6 +47,7 @@ export default async function CauHinhAppTrangChuPage() {
       listAppMobileSectionsForCms(),
       listAppMobileItemsForCms(),
       listAppMobileShellTabsForCms(),
+      listAppMobileRssFeedsForCms(),
     ]);
   const listBannersTop = toBannerList(bannersTop);
 
@@ -70,6 +72,7 @@ export default async function CauHinhAppTrangChuPage() {
     sortOrder: sec.sortOrder,
     isActive: sec.isActive,
     showBelowFavorites: sec.showBelowFavorites,
+    isNew: sec.isNew,
     items: (itemsBySection.get(sec.id) ?? []).map((it) => ({
       id: it.id,
       sectionId: it.sectionId,
@@ -80,6 +83,7 @@ export default async function CauHinhAppTrangChuPage() {
       sortOrder: it.sortOrder,
       isActive: it.isActive,
       isDefaultFavorite: it.isDefaultFavorite,
+      isNew: it.isNew,
     })),
   }));
 
@@ -132,6 +136,14 @@ export default async function CauHinhAppTrangChuPage() {
   const listCtaApplySections = toCtaSectionList("apply_online", ctaApplySections);
   const listCtaLookupSections = toCtaSectionList("lookup_result", ctaLookupSections);
 
+  const listRssFeeds = rssFeedsRows.map((f) => ({
+    id: f.id,
+    label: f.label,
+    feedUrl: f.feedUrl,
+    sortOrder: f.sortOrder,
+    isActive: f.isActive,
+  }));
+
   const homeBannerDecorationFile = homeBanner.decorationFileId
     ? await findFileById(homeBanner.decorationFileId)
     : null;
@@ -168,6 +180,7 @@ export default async function CauHinhAppTrangChuPage() {
           homeBannerLookupSections={listCtaLookupSections}
           sections={listSections}
           bannersTop={listBannersTop}
+          rssFeeds={listRssFeeds}
           shellTabs={listShellTabs}
         />
       </div>

@@ -14,6 +14,7 @@ import {
 import { uploadsPublicHref } from "@/lib/uploads/public-url";
 import { listNewsArticlesVisiblePublicPaged } from "@/lib/db/news-articles";
 import { ensureAppMobileSettingsRow, listAppMobileFaqsPublic } from "@/lib/db/app-mobile-settings";
+import { listAppMobileRssFeedsForCms, type PublicAppMobileRssFeed } from "@/lib/db/app-mobile-rss-feeds";
 import { normalizeAppMobileArticleBodyForPublic } from "@/lib/app-mobile-rich-text";
 
 type FileRow = typeof files.$inferSelect;
@@ -596,6 +597,22 @@ export async function setAppMobileItemDefaultFavorite(id: string, isDefaultFavor
     .where(eq(appMobileHomeItems.id, id));
 }
 
+export async function setAppMobileSectionIsNew(id: string, isNew: boolean): Promise<void> {
+  const now = new Date().toISOString();
+  await getDb()
+    .update(appMobileHomeSections)
+    .set({ isNew, updatedAt: now })
+    .where(eq(appMobileHomeSections.id, id));
+}
+
+export async function setAppMobileItemIsNew(id: string, isNew: boolean): Promise<void> {
+  const now = new Date().toISOString();
+  await getDb()
+    .update(appMobileHomeItems)
+    .set({ isNew, updatedAt: now })
+    .where(eq(appMobileHomeItems.id, id));
+}
+
 export async function setAppMobileBannerActive(id: string, isActive: boolean): Promise<void> {
   const now = new Date().toISOString();
   await getDb()
@@ -867,6 +884,7 @@ export type PublicAppMobileItem = {
   iconImageUrl: string | null;
   accentHex: string;
   isDefaultFavorite: boolean;
+  isNew: boolean;
   sortOrder: number;
   createdAt: string;
 };
@@ -876,6 +894,7 @@ export type PublicAppMobileSection = {
   title: string;
   sortOrder: number;
   showBelowFavorites: boolean;
+  isNew: boolean;
   createdAt: string;
   items: PublicAppMobileItem[];
 };
@@ -934,6 +953,7 @@ export type PublicAppMobileConfig = {
     banners: PublicAppMobileBanner[];
   };
   sections: PublicAppMobileSection[];
+  rssFeeds: PublicAppMobileRssFeed[];
 };
 
 export type PublicHomeCmsSection =
@@ -944,14 +964,14 @@ export type PublicHomeCmsSection =
       id: string;
       label: string;
       icon: string | null;
-      createdAt: string;
+      isNew: boolean;
       url?: string | null;
       routePath?: string | null;
       children: Array<{
         id: string;
         label: string;
         icon: string | null;
-        createdAt: string;
+        isNew: boolean;
         url?: string | null;
         routePath?: string | null;
         kind?: string | null;
@@ -981,7 +1001,7 @@ export type PublicHomeCmsSection =
       id: string;
       label: string;
       icon: string | null;
-      createdAt: string;
+      isNew: boolean;
       url: string | null;
       routePath: string | null;
       kind?: string | null;
@@ -1049,6 +1069,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
   }
   const settingsRow = await ensureAppMobileSettingsRow();
   const faqsRows = await listAppMobileFaqsPublic();
+  const rssFeedRowsAll = await listAppMobileRssFeedsForCms();
   const themeDefaults = {
     primarySeedHex: "#0D47A1",
     homeHeroTitle: "Chuyên trang chuyển đổi số\nXã Cửa Việt",
@@ -1242,6 +1263,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       iconImageUrl,
       accentHex: it.accentHex,
       isDefaultFavorite: it.isDefaultFavorite,
+      isNew: it.isNew,
       sortOrder: it.sortOrder,
       createdAt: it.createdAt,
     });
@@ -1252,6 +1274,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
     title: s.title,
     sortOrder: s.sortOrder,
     showBelowFavorites: s.showBelowFavorites,
+    isNew: s.isNew,
     createdAt: s.createdAt,
     items: (itemsBySection.get(s.id) ?? []).sort((a, b) => {
       const c = a.sortOrder - b.sortOrder;
@@ -1293,12 +1316,22 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
   for (const { item } of ctaItemRows) stamps.push(item.updatedAt);
   for (const st of shellTabRows) stamps.push(st.updatedAt);
   for (const f of faqsRows) stamps.push(f.updatedAt);
+  for (const r of rssFeedRowsAll) stamps.push(r.updatedAt);
 
   const shellTabs: PublicAppMobileShellTab[] = shellTabRows.map((st) => ({
     tabKey: st.tabKey,
     label: st.label,
     sortOrder: st.sortOrder,
   }));
+
+  const rssFeeds: PublicAppMobileRssFeed[] = rssFeedRowsAll
+    .filter((r) => r.isActive)
+    .map((r) => ({
+      id: r.id,
+      label: r.label,
+      feedUrl: r.feedUrl,
+      sortOrder: r.sortOrder,
+    }));
 
   return {
     updatedAt: maxIso(...stamps),
@@ -1350,6 +1383,7 @@ export async function buildPublicAppMobileConfig(): Promise<PublicAppMobileConfi
       banners: midBanners,
     },
     sections,
+    rssFeeds,
   };
 }
 
@@ -1366,12 +1400,12 @@ function mapSectionToSlideItem(
   id: string;
   label: string;
   icon: string | null;
-  createdAt: string;
+  isNew: boolean;
   children: Array<{
     id: string;
     label: string;
     icon: string | null;
-    createdAt: string;
+    isNew: boolean;
     url: string | null;
     routePath: string | null;
     kind: PublicAppMobileItem["kind"];
@@ -1384,14 +1418,14 @@ function mapSectionToSlideItem(
     id: s.id,
     label: s.title,
     icon: iconBySectionId.get(s.id) ?? null,
-    createdAt: s.createdAt,
+    isNew: s.isNew,
     children: s.items.map((it) => {
       const link = mapItemLink(it);
       return {
         id: it.id,
         label: it.label,
         icon: it.iconImageUrl ?? null,
-        createdAt: it.createdAt,
+        isNew: it.isNew,
         url: link.url,
         routePath: link.routePath,
         kind: it.kind,
@@ -1460,7 +1494,7 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
           id: it.id,
           label: it.label,
           icon: it.iconImageUrl ?? null,
-          createdAt: it.createdAt,
+          isNew: it.isNew,
           url: link.url,
           routePath: link.routePath,
           kind: it.kind,
@@ -1476,7 +1510,7 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
     id: string;
     label: string;
     icon: string | null;
-    createdAt: string;
+    isNew: boolean;
     url: string | null;
     routePath: string | null;
     kind: PublicAppMobileItem["kind"];
@@ -1521,7 +1555,7 @@ export async function buildPublicHomeCmsSections(opts?: { favoriteIds?: string[]
         id: it.id,
         label: it.label,
         icon: it.iconImageUrl ?? null,
-        createdAt: it.createdAt,
+        isNew: it.isNew,
         url: link.url,
         routePath: link.routePath,
         kind: it.kind,

@@ -107,13 +107,15 @@ export const files = pgTable("files", {
   createdAt: text("created_at").notNull(),
 });
 
-/** Tài khoản đăng ký của người dân (đăng nhập bằng số điện thoại — `phone` là duy nhất, không dùng làm PK). */
+/** Tài khoản đăng ký của người dân (đăng nhập bằng CCCD — `cccd` duy nhất khi đã gán). */
 export const citizenAccounts = pgTable("citizen_accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
   phone: text("phone").notNull().unique(),
   email: text("email").unique(),
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
+  /** Số căn cước công dân (12 chữ số, duy nhất — dùng đăng nhập). */
+  cccd: text("cccd").unique(),
   address: text("address").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
@@ -192,6 +194,8 @@ export const appMobileHomeSections = pgTable("app_mobile_home_sections", {
   isActive: boolean("is_active").notNull().default(true),
   /** Khi bật: nhóm hiển thị riêng dưới “Tiện ích yêu thích”, không nằm trong carousel “Nhóm dịch vụ”. */
   showBelowFavorites: boolean("show_below_favorites").notNull().default(false),
+  /** Hiển thị nhãn “Mới” trên app (carousel nhóm dịch vụ). */
+  isNew: boolean("is_new").notNull().default(false),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -219,6 +223,20 @@ export const appMobileHomeItems = pgTable("app_mobile_home_items", {
   accentHex: text("accent_hex").notNull().default("#1565C0"),
   /** Đánh dấu làm danh sách “Tiện ích yêu thích” mặc định (fallback khi máy chưa custom). */
   isDefaultFavorite: boolean("is_default_favorite").notNull().default(false),
+  /** Hiển thị nhãn “Mới” trên app. */
+  isNew: boolean("is_new").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Nguồn RSS hiển thị trên trang chủ app. */
+export const appMobileRssFeeds = pgTable("app_mobile_rss_feeds", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Tiêu đề khối tin trên app. */
+  label: text("label").notNull(),
+  feedUrl: text("feed_url").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),

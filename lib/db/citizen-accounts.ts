@@ -17,6 +17,13 @@ export function normalizeCitizenPhone(raw: string): string | null {
   return d;
 }
 
+/** Chuẩn hoá CCCD (12 chữ số). */
+export function normalizeCitizenCccd(raw: string): string | null {
+  const d = raw.replace(/\D/g, "");
+  if (d.length !== 12) return null;
+  return d;
+}
+
 /** Cùng chuỗi với chỗ tạo tài khoản ẩn danh khi gửi phản ánh không đăng nhập. */
 export const ANON_CITIZEN_PASSWORD_PLAINTEXT = "app-anonymous-citizen-submit";
 
@@ -31,6 +38,7 @@ export type CitizenAccountAuthRow = {
   id: string;
   phone: string;
   fullName: string;
+  cccd: string | null;
   address: string;
   email: string | null;
   passwordHash: string;
@@ -44,6 +52,7 @@ export async function findCitizenAccountByPhoneForAuth(
       id: citizenAccounts.id,
       phone: citizenAccounts.phone,
       fullName: citizenAccounts.fullName,
+      cccd: citizenAccounts.cccd,
       address: citizenAccounts.address,
       email: citizenAccounts.email,
       passwordHash: citizenAccounts.passwordHash,
@@ -54,6 +63,55 @@ export async function findCitizenAccountByPhoneForAuth(
   return row ?? null;
 }
 
+export async function findCitizenAccountByCccdForAuth(
+  cccd: string,
+): Promise<CitizenAccountAuthRow | null> {
+  const [row] = await getDb()
+    .select({
+      id: citizenAccounts.id,
+      phone: citizenAccounts.phone,
+      fullName: citizenAccounts.fullName,
+      cccd: citizenAccounts.cccd,
+      address: citizenAccounts.address,
+      email: citizenAccounts.email,
+      passwordHash: citizenAccounts.passwordHash,
+    })
+    .from(citizenAccounts)
+    .where(eq(citizenAccounts.cccd, cccd))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function findCitizenAccountByIdForPasswordAuth(
+  id: string,
+): Promise<CitizenAccountAuthRow | null> {
+  const [row] = await getDb()
+    .select({
+      id: citizenAccounts.id,
+      phone: citizenAccounts.phone,
+      fullName: citizenAccounts.fullName,
+      cccd: citizenAccounts.cccd,
+      address: citizenAccounts.address,
+      email: citizenAccounts.email,
+      passwordHash: citizenAccounts.passwordHash,
+    })
+    .from(citizenAccounts)
+    .where(eq(citizenAccounts.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function updateCitizenPasswordById(
+  id: string,
+  passwordHash: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await getDb()
+    .update(citizenAccounts)
+    .set({ passwordHash, updatedAt: now })
+    .where(eq(citizenAccounts.id, id));
+}
+
 export async function findCitizenAccountByIdForAuth(
   id: string,
 ): Promise<Omit<CitizenAccountAuthRow, "passwordHash"> | null> {
@@ -62,6 +120,7 @@ export async function findCitizenAccountByIdForAuth(
       id: citizenAccounts.id,
       phone: citizenAccounts.phone,
       fullName: citizenAccounts.fullName,
+      cccd: citizenAccounts.cccd,
       address: citizenAccounts.address,
       email: citizenAccounts.email,
     })
@@ -75,6 +134,7 @@ export async function insertCitizenRegisteredAccount(input: {
   phone: string;
   passwordHash: string;
   fullName: string;
+  cccd: string;
   address: string;
   email: string | null;
 }): Promise<string> {
@@ -85,6 +145,7 @@ export async function insertCitizenRegisteredAccount(input: {
       phone: input.phone,
       passwordHash: input.passwordHash,
       fullName: input.fullName.trim(),
+      cccd: input.cccd,
       address: input.address.trim(),
       email: input.email,
       createdAt: now,
@@ -99,6 +160,7 @@ export async function upgradeAnonymousCitizenPassword(input: {
   id: string;
   passwordHash: string;
   fullName: string;
+  cccd: string;
   address: string;
   email: string | null;
 }): Promise<void> {
@@ -108,6 +170,7 @@ export async function upgradeAnonymousCitizenPassword(input: {
     .set({
       passwordHash: input.passwordHash,
       fullName: input.fullName.trim(),
+      cccd: input.cccd,
       address: input.address.trim(),
       email: input.email,
       updatedAt: now,
@@ -193,6 +256,38 @@ export async function listCitizenAccounts(): Promise<CitizenAccountListItem[]> {
     })
     .from(citizenAccounts)
     .orderBy(desc(citizenAccounts.createdAt));
+}
+
+export async function updateCitizenProfileById(
+  id: string,
+  input: {
+    fullName: string;
+    phone: string;
+    address: string;
+    email: string | null;
+  },
+): Promise<Omit<CitizenAccountAuthRow, "passwordHash">> {
+  const now = new Date().toISOString();
+  const [row] = await getDb()
+    .update(citizenAccounts)
+    .set({
+      fullName: input.fullName.trim(),
+      phone: input.phone,
+      address: input.address.trim(),
+      email: input.email,
+      updatedAt: now,
+    })
+    .where(eq(citizenAccounts.id, id))
+    .returning({
+      id: citizenAccounts.id,
+      phone: citizenAccounts.phone,
+      fullName: citizenAccounts.fullName,
+      cccd: citizenAccounts.cccd,
+      address: citizenAccounts.address,
+      email: citizenAccounts.email,
+    });
+  if (!row) throw new Error("Không cập nhật được tài khoản.");
+  return row;
 }
 
 export async function setCitizenAccountActiveById(

@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { mintCitizenToken } from "@/lib/citizen-auth/token";
 import { ensureAppMobileSettingsRow } from "@/lib/db/app-mobile-settings";
 import {
+  findCitizenAccountByCccdForAuth,
   findCitizenAccountByPhoneForAuth,
   insertCitizenRegisteredAccount,
   isAnonymousCitizenPasswordHash,
+  normalizeCitizenCccd,
   normalizeCitizenPhone,
   upgradeAnonymousCitizenPassword,
 } from "@/lib/db/citizen-accounts";
@@ -35,9 +37,16 @@ export async function POST(request: Request) {
     const address = String(b.address ?? "").trim();
     const emailRaw = b.email != null ? String(b.email).trim() : "";
     const phoneNorm = normalizeCitizenPhone(String(b.phone ?? ""));
+    const cccdNorm = normalizeCitizenCccd(String(b.cccd ?? ""));
 
     if (!phoneNorm) {
       return NextResponse.json({ error: "Số điện thoại không hợp lệ." }, { status: 400 });
+    }
+    if (!cccdNorm) {
+      return NextResponse.json(
+        { error: "Số CCCD không hợp lệ (12 chữ số)." },
+        { status: 400 },
+      );
     }
     if (password.length < 6 || password.length > 128) {
       return NextResponse.json(
@@ -48,45 +57,72 @@ export async function POST(request: Request) {
     if (fullName.length < 2 || fullName.length > 120) {
       return NextResponse.json({ error: "Họ tên không hợp lệ." }, { status: 400 });
     }
-    if (address.length < 5 || address.length > 500) {
-      return NextResponse.json({ error: "Địa chỉ không hợp lệ." }, { status: 400 });
+    if (address.length > 500) {
+      return NextResponse.json({ error: "Địa chỉ quá dài." }, { status: 400 });
     }
 
     const email = emailRaw.length > 0 ? emailRaw : null;
     const passwordHash = hashSync(password, 10);
 
-    const existing = await findCitizenAccountByPhoneForAuth(phoneNorm);
-    if (existing) {
-      if (!isAnonymousCitizenPasswordHash(existing.passwordHash)) {
+    const existingByCccd = await findCitizenAccountByCccdForAuth(cccdNorm);
+    if (
+      existingByCccd &&
+      !isAnonymousCitizenPasswordHash(existingByCccd.passwordHash)
+    ) {
+      return NextResponse.json(
+        { error: "Số CCCD đã được đăng ký. Hãy đăng nhập." },
+        { status: 409 },
+      );
+    }
+
+    const existingByPhone = await findCitizenAccountByPhoneForAuth(phoneNorm);
+    if (existingByPhone) {
+      if (!isAnonymousCitizenPasswordHash(existingByPhone.passwordHash)) {
         return NextResponse.json(
           { error: "Số điện thoại đã đăng ký. Hãy đăng nhập." },
           { status: 409 },
         );
       }
+      if (existingByCccd && existingByCccd.id !== existingByPhone.id) {
+        return NextResponse.json(
+          { error: "Số CCCD đã được đăng ký trên tài khoản khác." },
+          { status: 409 },
+        );
+      }
       await upgradeAnonymousCitizenPassword({
-        id: existing.id,
+        id: existingByPhone.id,
         passwordHash,
         fullName,
+        cccd: cccdNorm,
         address,
         email,
       });
-      const token = mintCitizenToken(existing.id);
+      const token = mintCitizenToken(existingByPhone.id);
       return NextResponse.json({
         token,
         citizen: {
-          id: existing.id,
+          id: existingByPhone.id,
           fullName,
           phone: phoneNorm,
+          cccd: cccdNorm,
           address,
           email,
         },
       });
     }
 
+    if (existingByCccd) {
+      return NextResponse.json(
+        { error: "Số CCCD đã được đăng ký trên tài khoản khác." },
+        { status: 409 },
+      );
+    }
+
     const id = await insertCitizenRegisteredAccount({
       phone: phoneNorm,
       passwordHash,
       fullName,
+      cccd: cccdNorm,
       address,
       email,
     });
@@ -97,6 +133,7 @@ export async function POST(request: Request) {
         id,
         fullName,
         phone: phoneNorm,
+        cccd: cccdNorm,
         address,
         email,
       },

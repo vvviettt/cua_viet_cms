@@ -47,6 +47,8 @@ import {
   setAppMobileBannerActive,
   setAppMobileItemActive,
   setAppMobileItemDefaultFavorite,
+  setAppMobileItemIsNew,
+  setAppMobileSectionIsNew,
   setAppMobileSectionActive,
   setAppMobileSectionShowBelowFavorites,
   setAppMobileShellTabActive,
@@ -60,6 +62,13 @@ import {
   updateAppMobileHomeBanner,
   updateAppMobileTheme,
 } from "@/lib/db/app-mobile-config";
+import {
+  deleteAppMobileRssFeed,
+  insertAppMobileRssFeed,
+  moveAppMobileRssFeedRelative,
+  nextAppMobileRssFeedSortOrder,
+  setAppMobileRssFeedActive,
+} from "@/lib/db/app-mobile-rss-feeds";
 import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 import { sessionCanEditModule } from "@/lib/cms-module-access";
 
@@ -1535,6 +1544,30 @@ export async function setAppMobileItemDefaultFavoriteServer(id: string, isDefaul
   revalidateCauHinhAppTree();
 }
 
+export async function setAppMobileSectionIsNewServer(id: string, isNew: boolean): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileSectionIsNew(id, isNew);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileItemIsNewServer(id: string, isNew: boolean): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileItemIsNew(id, isNew);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
 export async function setAppMobileBannerActiveServer(id: string, isActive: boolean): Promise<void> {
   const session = await getSession();
   if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
@@ -1567,6 +1600,77 @@ export async function moveAppMobileShellTabServer(id: string, direction: "up" | 
   if (!UUID_RE.test(id)) return;
   try {
     await moveAppMobileShellTabRelative(id, direction);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+function parseRssFeedUrl(raw: string): string | null {
+  const url = raw.trim();
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+export async function createAppMobileRssFeedAction(
+  _prev: AppMobileFormState,
+  formData: FormData,
+): Promise<AppMobileFormState> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) {
+    return { error: "Không có quyền." };
+  }
+  const label = String(formData.get("label") ?? "").trim();
+  const feedUrl = parseRssFeedUrl(String(formData.get("feedUrl") ?? ""));
+  if (!label) return { error: "Nhập tiêu đề hiển thị trên app." };
+  if (!feedUrl) return { error: "URL RSS không hợp lệ (http/https)." };
+  try {
+    const sortOrder = await nextAppMobileRssFeedSortOrder();
+    await insertAppMobileRssFeed({ label, feedUrl, sortOrder, isActive: true });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Không thêm được nguồn RSS." };
+  }
+  revalidateCauHinhAppTree();
+  return { ok: true };
+}
+
+export async function deleteAppMobileRssFeedFormAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
+  const id = String(formData.get("id") ?? "").trim();
+  if (!UUID_RE.test(id)) return;
+  try {
+    await deleteAppMobileRssFeed(id);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function setAppMobileRssFeedActiveServer(id: string, isActive: boolean): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await setAppMobileRssFeedActive(id, isActive);
+  } catch (e) {
+    console.error(e);
+  }
+  revalidateCauHinhAppTree();
+}
+
+export async function moveAppMobileRssFeedServer(id: string, direction: "up" | "down"): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await sessionCanEditModule(session, "app_mobile"))) return;
+  if (!UUID_RE.test(id)) return;
+  try {
+    await moveAppMobileRssFeedRelative(id, direction);
   } catch (e) {
     console.error(e);
   }

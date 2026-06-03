@@ -1,13 +1,15 @@
 "use client";
 
-import { ImageIcon, LayoutGrid, Palette, Rows3 } from "lucide-react";
+import { Globe, ImageIcon, LayoutGrid, Palette, Rows3 } from "lucide-react";
 import { useState } from "react";
 
 import { AppBannerCreateForm } from "@/components/app-mobile/app-banner-create-form";
 import { AppMobileBannerPanel } from "@/components/app-mobile/app-mobile-banner-panel";
+import { AppMobileRssPanel } from "@/components/app-mobile/app-mobile-rss-panel";
 import type {
   AppMobileListBanner,
   AppMobileListHomeBannerSection,
+  AppMobileListRssFeed,
   AppMobileListSection,
   AppMobileListShellTab,
 } from "@/components/app-mobile/app-mobile-config-types";
@@ -18,7 +20,7 @@ import { AppThemeForm } from "@/components/app-mobile/app-theme-form";
 import { Modal } from "@/components/ui/modal";
 import { appMobileCauHinhPaths } from "@/lib/app-mobile-cau-hinh-paths";
 
-type TabId = "appearance" | "catalog" | "media" | "shell";
+type TabId = "appearance" | "catalog" | "media" | "rss" | "shell";
 
 const TABS: {
   id: TabId;
@@ -29,6 +31,7 @@ const TABS: {
     { id: "appearance", label: "Giao diện", hint: "Màu & tiêu đề", Icon: Palette },
     { id: "catalog", label: "Danh mục", hint: "Nhóm & mục dịch vụ", Icon: LayoutGrid },
     { id: "media", label: "Banner", hint: "Ảnh đầu & giữa trang", Icon: ImageIcon },
+    { id: "rss", label: "RSS", hint: "Tin tức & sự kiện", Icon: Globe },
   ];
 
 type Props = {
@@ -44,6 +47,7 @@ type Props = {
   homeBannerLookupSections: AppMobileListHomeBannerSection[];
   sections: AppMobileListSection[];
   bannersTop: AppMobileListBanner[];
+  rssFeeds: AppMobileListRssFeed[];
   shellTabs: AppMobileListShellTab[];
 };
 
@@ -60,6 +64,7 @@ export function AppTrangChuConfigurator({
   homeBannerLookupSections,
   sections,
   bannersTop,
+  rssFeeds,
   shellTabs,
 }: Props) {
   const [tab, setTab] = useState<TabId>("appearance");
@@ -147,6 +152,9 @@ export function AppTrangChuConfigurator({
           </div>
         ) : null}
 
+        {tab === "rss" ? (
+          <AppMobileRssPanel canEdit={canEdit} feeds={rssFeeds} embedded />
+        ) : null}
 
       </div>
     </div>

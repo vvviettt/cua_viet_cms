@@ -11,7 +11,9 @@ import {
   moveAppMobileSectionServer,
   setAppMobileItemActiveServer,
   setAppMobileItemDefaultFavoriteServer,
+  setAppMobileItemIsNewServer,
   setAppMobileSectionActiveServer,
+  setAppMobileSectionIsNewServer,
   setAppMobileSectionShowBelowFavoritesServer,
 } from "@/app/actions/app-mobile-config";
 import type { AppMobileListSection } from "./app-mobile-config-types";
@@ -134,6 +136,7 @@ function AppMobileMenuSectionCard({
               <span className="mt-1 block text-xs text-zinc-500">
                 {sec.isActive ? "Đang hiển thị trên app" : "Đang ẩn trên app"}
                 {sec.showBelowFavorites ? " · Ngoài nhóm dịch vụ" : null}
+                {sec.isNew ? " · Mới" : null}
               </span>
             ) : null}
           </span>
@@ -176,6 +179,15 @@ function AppMobileMenuSectionCard({
                     label="Hiển thị dưới danh sách yêu thích"
                   />
                   <span className="text-xs text-zinc-600">Hiển thị ngoài nhóm dịch vụ</span>
+                </div>
+                <div className="flex flex-wrap items-center  gap-2">
+                  <ToggleSwitch
+                    checked={sec.isNew}
+                    disabled={!canEdit || pending}
+                    onChange={(next) => run(() => setAppMobileSectionIsNewServer(sec.id, next))}
+                    label="Hiển thị nhãn Mới trên carousel nhóm dịch vụ"
+                  />
+                  <span className="text-xs text-zinc-600">Mới</span>
                 </div>
               </div>
             </div>
@@ -299,6 +311,29 @@ function AppMobileMenuSectionCard({
                         ].join(" ")}
                       >
                         <Heart className="size-5" fill={it.isDefaultFavorite ? "currentColor" : "none"} strokeWidth={1.75} />
+                      </button>
+                    ) : null}
+
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => run(() => setAppMobileItemIsNewServer(it.id, !it.isNew))}
+                        title={it.isNew ? "Tắt nhãn Mới" : "Bật nhãn Mới"}
+                        aria-label={it.isNew ? "Tắt nhãn Mới" : "Bật nhãn Mới"}
+                        aria-pressed={it.isNew}
+                        className={[
+                          "inline-flex min-w-[2.25rem] items-center justify-center rounded-md border px-1.5 py-1 text-[10px] font-extrabold transition-all duration-200",
+                          it.isNew
+                            ? "border-(--portal-primary) bg-(--portal-primary) text-white"
+                            : "border-zinc-200 bg-white text-zinc-400",
+                          pending
+                            ? "cursor-not-allowed opacity-50"
+                            : "cursor-pointer active:scale-95 hover:border-zinc-300",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--portal-primary) focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                        ].join(" ")}
+                      >
+                        Mới
                       </button>
                     ) : null}
 

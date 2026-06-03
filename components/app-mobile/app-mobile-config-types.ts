@@ -16,6 +16,7 @@ export type AppMobileListItem = {
   sortOrder: number;
   isActive: boolean;
   isDefaultFavorite: boolean;
+  isNew: boolean;
 };
 
 export type AppMobileListSection = {
@@ -24,7 +25,16 @@ export type AppMobileListSection = {
   sortOrder: number;
   isActive: boolean;
   showBelowFavorites: boolean;
+  isNew: boolean;
   items: AppMobileListItem[];
+};
+
+export type AppMobileListRssFeed = {
+  id: string;
+  label: string;
+  feedUrl: string;
+  sortOrder: number;
+  isActive: boolean;
 };
 
 export type AppMobileListShellTab = {
