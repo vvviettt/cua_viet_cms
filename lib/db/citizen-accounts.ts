@@ -1,5 +1,5 @@
 import { compareSync, hashSync } from "bcryptjs";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { citizenAccounts } from "@/lib/db/schema";
 
@@ -235,6 +235,7 @@ export type CitizenAccountListItem = {
   id: string;
   phone: string;
   fullName: string;
+  cccd: string | null;
   address: string;
   email: string | null;
   isActive: boolean;
@@ -242,12 +243,32 @@ export type CitizenAccountListItem = {
   updatedAt: string;
 };
 
-export async function listCitizenAccounts(): Promise<CitizenAccountListItem[]> {
-  return await getDb()
+export const CITIZEN_ACCOUNT_LIST_PAGE_SIZE = 15;
+
+export type CitizenAccountListPage = {
+  items: CitizenAccountListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export async function listCitizenAccountsPaginated(opts: {
+  page: number;
+  pageSize: number;
+}): Promise<CitizenAccountListPage> {
+  const db = getDb();
+  const [countRow] = await db.select({ c: count() }).from(citizenAccounts);
+  const total = Number(countRow?.c ?? 0);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / opts.pageSize);
+  const safePage = totalPages === 0 ? 1 : Math.min(Math.max(1, opts.page), totalPages);
+  const offset = totalPages === 0 ? 0 : (safePage - 1) * opts.pageSize;
+
+  const items = await db
     .select({
       id: citizenAccounts.id,
       phone: citizenAccounts.phone,
       fullName: citizenAccounts.fullName,
+      cccd: citizenAccounts.cccd,
       address: citizenAccounts.address,
       email: citizenAccounts.email,
       isActive: citizenAccounts.isActive,
@@ -255,7 +276,16 @@ export async function listCitizenAccounts(): Promise<CitizenAccountListItem[]> {
       updatedAt: citizenAccounts.updatedAt,
     })
     .from(citizenAccounts)
-    .orderBy(desc(citizenAccounts.createdAt));
+    .orderBy(desc(citizenAccounts.createdAt))
+    .limit(opts.pageSize)
+    .offset(offset);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    pageSize: opts.pageSize,
+  };
 }
 
 export async function updateCitizenProfileById(
@@ -299,4 +329,9 @@ export async function setCitizenAccountActiveById(
     .update(citizenAccounts)
     .set({ isActive, updatedAt: now })
     .where(eq(citizenAccounts.id, id));
+}
+
+/** Xóa tài khoản công dân; FK liên quan (phản ánh, đánh giá, push token) được SET NULL. */
+export async function deleteCitizenAccountById(id: string): Promise<void> {
+  await getDb().delete(citizenAccounts).where(eq(citizenAccounts.id, id));
 }

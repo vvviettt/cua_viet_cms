@@ -344,6 +344,13 @@
       "when": 1779200000000,
       "tag": "0051_citizen_accounts_cccd_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1779300000000,
+      "tag": "0052_citizen_account_fk_set_null",
+      "breakpoints": true
     }
   ]
 }

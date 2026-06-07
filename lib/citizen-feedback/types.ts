@@ -7,8 +7,8 @@ export type CitizenFeedbackRecord = {
   kind: CitizenFeedbackKind;
   title: string;
   content: string;
-  citizenAccountId: string;
-  /** Họ tên từ `citizen_accounts`. */
+  citizenAccountId: string | null;
+  /** Họ tên từ `citizen_accounts` (null nếu tài khoản đã xóa). */
   accountFullName: string;
   accountPhone: string;
   accountEmail: string | null;

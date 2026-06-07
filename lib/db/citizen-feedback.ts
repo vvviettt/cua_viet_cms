@@ -127,7 +127,7 @@ function answererDisplayName(fullName: string | null, email: string | null): str
 
 function toRecord(
   row: typeof citizenFeedback.$inferSelect,
-  account: { fullName: string; phone: string; email: string | null },
+  account: { fullName: string; phone: string; email: string | null } | null,
   answerer: { fullName: string | null; email: string | null },
 ): CitizenFeedbackRecord {
   const answeredByUserId = row.answeredByUserId ?? null;
@@ -137,9 +137,9 @@ function toRecord(
     title: row.title,
     content: row.content,
     citizenAccountId: row.citizenAccountId,
-    accountFullName: account.fullName,
-    accountPhone: account.phone,
-    accountEmail: account.email,
+    accountFullName: account?.fullName ?? "— (tài khoản đã xóa)",
+    accountPhone: account?.phone ?? "—",
+    accountEmail: account?.email ?? null,
     status: row.status as CitizenFeedbackStatus,
     answeredByUserId,
     answeredByName:
@@ -184,7 +184,7 @@ export async function listCitizenFeedbackPaginated(opts: {
   const countBase = db
     .select({ c: count() })
     .from(citizenFeedback)
-    .innerJoin(citizenAccounts, eq(citizenFeedback.citizenAccountId, citizenAccounts.id));
+    .leftJoin(citizenAccounts, eq(citizenFeedback.citizenAccountId, citizenAccounts.id));
   const [countRow] = searchWhere
     ? await countBase.where(searchWhere)
     : await countBase;
@@ -204,7 +204,7 @@ export async function listCitizenFeedbackPaginated(opts: {
       ansEmail: users.email,
     })
     .from(citizenFeedback)
-    .innerJoin(citizenAccounts, eq(citizenFeedback.citizenAccountId, citizenAccounts.id))
+    .leftJoin(citizenAccounts, eq(citizenFeedback.citizenAccountId, citizenAccounts.id))
     .leftJoin(users, eq(citizenFeedback.answeredByUserId, users.id));
 
   const rows = searchWhere
@@ -222,7 +222,13 @@ export async function listCitizenFeedbackPaginated(opts: {
     items: rows.map((r) =>
       toRecord(
         r.row,
-        { fullName: r.accFullName, phone: r.accPhone, email: r.accEmail ?? null },
+        r.accFullName != null && r.accPhone != null
+            ? {
+                fullName: r.accFullName,
+                phone: r.accPhone,
+                email: r.accEmail ?? null,
+              }
+            : null,
         { fullName: r.ansFullName, email: r.ansEmail },
       ),
     ),
@@ -243,14 +249,20 @@ export async function findCitizenFeedbackById(id: string): Promise<CitizenFeedba
       ansEmail: users.email,
     })
     .from(citizenFeedback)
-    .innerJoin(citizenAccounts, eq(citizenFeedback.citizenAccountId, citizenAccounts.id))
+    .leftJoin(citizenAccounts, eq(citizenFeedback.citizenAccountId, citizenAccounts.id))
     .leftJoin(users, eq(citizenFeedback.answeredByUserId, users.id))
     .where(eq(citizenFeedback.id, id))
     .limit(1);
   return r
     ? toRecord(
         r.row,
-        { fullName: r.accFullName, phone: r.accPhone, email: r.accEmail ?? null },
+        r.accFullName != null && r.accPhone != null
+            ? {
+                fullName: r.accFullName,
+                phone: r.accPhone,
+                email: r.accEmail ?? null,
+              }
+            : null,
         { fullName: r.ansFullName, email: r.ansEmail },
       )
     : null;

@@ -127,9 +127,9 @@ export const citizenFeedback = pgTable("citizen_feedback", {
   kind: citizenFeedbackKindEnum("kind").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  citizenAccountId: uuid("citizen_account_id")
-    .notNull()
-    .references(() => citizenAccounts.id),
+  citizenAccountId: uuid("citizen_account_id").references(() => citizenAccounts.id, {
+    onDelete: "set null",
+  }),
   status: citizenFeedbackStatusEnum("status").notNull().default("received"),
   answeredByUserId: uuid("answered_by_user_id").references(() => users.id),
   /** Nội dung trả lời chính thức gửi người dân (hiển thị trên ứng dụng / cổng). */
@@ -158,9 +158,9 @@ export const staffMemberRatings = pgTable(
   "staff_member_ratings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    citizenAccountId: uuid("citizen_account_id")
-      .notNull()
-      .references(() => citizenAccounts.id, { onDelete: "cascade" }),
+    citizenAccountId: uuid("citizen_account_id").references(() => citizenAccounts.id, {
+      onDelete: "set null",
+    }),
     staffMemberId: uuid("staff_member_id")
       .notNull()
       .references(() => staffMembers.id, { onDelete: "cascade" }),
